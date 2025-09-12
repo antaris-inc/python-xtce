@@ -1,0 +1,12 @@
+[project]
+name = "xtce"
+version = "0.1.0"
+dependencies = [
+	"bitarray",
+	"pydantic",
+	"xmlschema",
+	"numpy"
+]
+
+[tool.setuptools.package-data]
+"xtce" = ["*.xsd", "examples/*"]

@@ -1,0 +1,351 @@
+<xtce:SpaceSystem
+	xmlns:xtce="http://www.omg.org/spec/XTCE/20180204"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="GovSat"
+shortDescription="A GovSat example">
+	<xtce:LongDescription>This file is intended to give a quick
+overview of XTCE for CCSDS based mission. This example does not cover all
+possibilities of XTCE but tries to give relevant examples of the main
+points covered by the standard. </xtce:LongDescription>
+	<xtce:Header validationStatus="Validated" date="2019-04-04"
+	version="0.2"/>
+	<xtce:TelemetryMetaData>
+		<xtce:ParameterTypeSet>
+			<xtce:IntegerParameterType signed="false" name="CCSDSSCIDType"/>
+			<xtce:IntegerParameterType signed="false" name="CCSDSVCIDType"/>
+			<xtce:IntegerParameterType signed="false" name="CCSDSVersionType">
+				<xtce:IntegerDataEncoding sizeInBits="3"/>
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType signed="false" name="CCSDSTypeType">
+				<xtce:IntegerDataEncoding sizeInBits="1"/>
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType signed="false" name="CCSDSSecHType">
+				<xtce:IntegerDataEncoding sizeInBits="1"/>
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType signed="false" name="CCSDSAPIDType">
+				<xtce:IntegerDataEncoding sizeInBits="11"/>
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType signed="false" name="CCSDSGroupFlagsType">
+				<xtce:IntegerDataEncoding sizeInBits="2"/>
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType signed="false"
+name="CCSDSSourceSequenceCountType">
+				<xtce:IntegerDataEncoding sizeInBits="14"/>
+			</xtce:IntegerParameterType>
+			<xtce:IntegerParameterType signed="false" name="CCSDSPacketLengthType">
+				<xtce:IntegerDataEncoding sizeInBits="16"/>
+			</xtce:IntegerParameterType>
+			<xtce:AbsoluteTimeParameterType name="TimeStampType"
+shortDescription="16b: pfld, 32b: secs epoch, 16b: (1 mil u/ffff) 15.2587890625 usec per
+tick">
+				<xtce:Encoding units="seconds" scale="1.0" offset="0.0">
+					<xtce:IntegerDataEncoding encoding="unsigned"
+sizeInBits="64" bitOrder="mostSignificantBitFirst"/>
+				</xtce:Encoding>
+				<xtce:ReferenceTime>
+					<xtce:Epoch>TAI</xtce:Epoch>
+				</xtce:ReferenceTime>
+			</xtce:AbsoluteTimeParameterType>
+			<xtce:FloatParameterType sizeInBits="64" name="PowmX0EP_VoltageType">
+				<xtce:UnitSet>
+					<xtce:Unit power="1.0" factor="1"
+description="ScaleUnits">V</xtce:Unit>
+				</xtce:UnitSet>
+				<xtce:IntegerDataEncoding encoding="twosComplement"
+sizeInBits="16" bitOrder="mostSignificantBitFirst">
+					<xtce:DefaultCalibrator>
+						<xtce:PolynomialCalibrator>
+							<xtce:Term coefficient="0.0"
+exponent="0"/>
+							<xtce:Term coefficient="0.1"
+exponent="1"/>
+						</xtce:PolynomialCalibrator>
+					</xtce:DefaultCalibrator>
+				</xtce:IntegerDataEncoding>
+			</xtce:FloatParameterType>
+			<xtce:FloatParameterType sizeInBits="64" name="PowmX0EP_CurrentType">
+				<xtce:UnitSet>
+					<xtce:Unit power="1.0" factor="1"
+description="ScaleUnits">A</xtce:Unit>
+				</xtce:UnitSet>
+				<xtce:IntegerDataEncoding encoding="twosComplement"
+sizeInBits="16" bitOrder="mostSignificantBitFirst">
+					<xtce:DefaultCalibrator>
+						<xtce:PolynomialCalibrator>
+							<xtce:Term coefficient="0.0"
+exponent="0"/>
+							<xtce:Term coefficient="0.1"
+exponent="1"/>
+						</xtce:PolynomialCalibrator>
+					</xtce:DefaultCalibrator>
+				</xtce:IntegerDataEncoding>
+			</xtce:FloatParameterType>
+			<xtce:IntegerParameterType sizeInBits="32" signed="false"
+name="PowmX0PPS_SourceType">
+				<xtce:IntegerDataEncoding encoding="unsigned" sizeInBits="8"
+bitOrder="mostSignificantBitFirst"/>
+			</xtce:IntegerParameterType>
+			<xtce:FloatParameterType sizeInBits="64" name="PowmX0EP_MaxCurType">
+				<xtce:UnitSet>
+					<xtce:Unit power="1.0" factor="1"
+description="ScaleUnits">A</xtce:Unit>
+				</xtce:UnitSet>
+				<xtce:IntegerDataEncoding encoding="twosComplement"
+sizeInBits="16" bitOrder="mostSignificantBitFirst">
+					<xtce:DefaultCalibrator>
+						<xtce:PolynomialCalibrator>
+							<xtce:Term coefficient="0.0"
+exponent="0"/>
+							<xtce:Term coefficient="0.1"
+exponent="1"/>
+						</xtce:PolynomialCalibrator>
+					</xtce:DefaultCalibrator>
+				</xtce:IntegerDataEncoding>
+			</xtce:FloatParameterType>
+			<xtce:FloatParameterType sizeInBits="64" name="PowmX0Bus_VoltageType">
+				<xtce:UnitSet>
+					<xtce:Unit power="1.0" factor="1"
+description="ScaleUnits">V</xtce:Unit>
+				</xtce:UnitSet>
+				<xtce:IntegerDataEncoding encoding="twosComplement"
+sizeInBits="16" bitOrder="mostSignificantBitFirst">
+					<xtce:DefaultCalibrator>
+						<xtce:PolynomialCalibrator>
+							<xtce:Term coefficient="0.0"
+exponent="0"/>
+							<xtce:Term coefficient="0.1"
+exponent="1"/>
+						</xtce:PolynomialCalibrator>
+					</xtce:DefaultCalibrator>
+				</xtce:IntegerDataEncoding>
+			</xtce:FloatParameterType>
+			<xtce:EnumeratedParameterType initialValue="Off"
+name="PowmX0EP_PowerStateType">
+				<xtce:IntegerDataEncoding encoding="unsigned" sizeInBits="8"
+bitOrder="mostSignificantBitFirst"/>
+				<xtce:EnumerationList>
+					<xtce:Enumeration value="1" label="Off"/>
+					<xtce:Enumeration value="2" label="On"/>
+					<xtce:Enumeration value="3" label="Tripped"/>
+					<xtce:Enumeration value="4" label="NotWorking"/>
+				</xtce:EnumerationList>
+			</xtce:EnumeratedParameterType>
+			<xtce:FloatParameterType sizeInBits="64" name="PowmX0EP_SetPointType">
+				<xtce:UnitSet>
+					<xtce:Unit power="1.0" factor="1"
+description="ScaleUnits">A</xtce:Unit>
+				</xtce:UnitSet>
+				<xtce:IntegerDataEncoding encoding="twosComplement"
+sizeInBits="16" bitOrder="mostSignificantBitFirst">
+					<xtce:DefaultCalibrator>
+						<xtce:PolynomialCalibrator>
+							<xtce:Term coefficient="0.0"
+exponent="0"/>
+							<xtce:Term coefficient="0.1"
+exponent="1"/>
+						</xtce:PolynomialCalibrator>
+					</xtce:DefaultCalibrator>
+				</xtce:IntegerDataEncoding>
+			</xtce:FloatParameterType>
+		</xtce:ParameterTypeSet>
+		<xtce:ParameterSet>
+			<xtce:Parameter parameterTypeRef="CCSDSSCIDType" name="CCSDSSCID">
+				<xtce:ParameterProperties dataSource="local"/>
+			</xtce:Parameter>
+			<xtce:Parameter parameterTypeRef="CCSDSVCIDType" name="CCSDSVCID">
+				<xtce:ParameterProperties dataSource="local"/>
+			</xtce:Parameter>
+			<xtce:Parameter parameterTypeRef="CCSDSVersionType"
+name="CCSDSVersion"/>
+			<xtce:Parameter parameterTypeRef="CCSDSTypeType" name="CCSDSType"/>
+			<xtce:Parameter parameterTypeRef="CCSDSSecHType" name="CCSDSSecH"/>
+			<xtce:Parameter parameterTypeRef="CCSDSAPIDType" name="CCSDSAPID"/>
+			<xtce:Parameter parameterTypeRef="CCSDSGroupFlagsType"
+name="CCSDSGroupFlags"/>
+			<xtce:Parameter parameterTypeRef="CCSDSSourceSequenceCountType"
+name="CCSDSSourceSequenceCount"/>
+			<xtce:Parameter parameterTypeRef="CCSDSPacketLengthType"
+name="CCSDSPacketLength"/>
+			<xtce:Parameter parameterTypeRef="TimeStampType" name="TimeStamp"/>
+			<xtce:Parameter parameterTypeRef="PowmX0EP_VoltageType"
+name="PowmX0EP_Voltage">
+				<xtce:ParameterProperties readOnly="false">
+					<xtce:SystemName>PowmX0</xtce:SystemName>
+				</xtce:ParameterProperties>
+			</xtce:Parameter>
+			<xtce:Parameter parameterTypeRef="PowmX0EP_CurrentType"
+name="PowmX0EP_Current">
+				<xtce:ParameterProperties readOnly="false">
+					<xtce:SystemName>PowmX0</xtce:SystemName>
+				</xtce:ParameterProperties>
+			</xtce:Parameter>
+			<xtce:Parameter parameterTypeRef="PowmX0PPS_SourceType"
+name="PowmX0PPS_Source">
+				<xtce:ParameterProperties readOnly="false">
+					<xtce:SystemName>PowmX0</xtce:SystemName>
+				</xtce:ParameterProperties>
+			</xtce:Parameter>
+			<xtce:Parameter parameterTypeRef="PowmX0EP_MaxCurType"
+name="PowmX0EP_MaxCur">
+				<xtce:ParameterProperties readOnly="false">
+					<xtce:SystemName>PowmX0</xtce:SystemName>
+				</xtce:ParameterProperties>
+			</xtce:Parameter>
+			<xtce:Parameter parameterTypeRef="PowmX0Bus_VoltageType"
+name="PowmX0Bus_Voltage">
+				<xtce:ParameterProperties readOnly="false">
+					<xtce:SystemName>PowmX0</xtce:SystemName>
+				</xtce:ParameterProperties>
+			</xtce:Parameter>
+			<xtce:Parameter parameterTypeRef="PowmX0EP_PowerStateType"
+name="PowmX0EP_PowerState">
+				<xtce:ParameterProperties readOnly="false">
+					<xtce:SystemName>PowmX0</xtce:SystemName>
+				</xtce:ParameterProperties>
+			</xtce:Parameter>
+			<xtce:Parameter parameterTypeRef="PowmX0EP_SetPointType"
+name="PowmX0EP_SetPoint">
+				<xtce:ParameterProperties readOnly="false">
+					<xtce:SystemName>PowmX0</xtce:SystemName>
+				</xtce:ParameterProperties>
+			</xtce:Parameter>
+		</xtce:ParameterSet>
+		<xtce:ContainerSet>
+			<xtce:SequenceContainer abstract="true" name="CCSDSPacket">
+				<xtce:LongDescription>Super-container for all CCSDS telemetry
+and command packets</xtce:LongDescription>
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="CCSDSVersion"/>
+					<xtce:ParameterRefEntry parameterRef="CCSDSType"/>
+					<xtce:ParameterRefEntry parameterRef="CCSDSSecH"/>
+					<xtce:ParameterRefEntry parameterRef="CCSDSAPID"/>
+					<xtce:ParameterRefEntry parameterRef="CCSDSGroupFlags"/>
+					<xtce:ParameterRefEntry
+parameterRef="CCSDSSourceSequenceCount"/>
+					<xtce:ParameterRefEntry
+parameterRef="CCSDSPacketLength"/>
+				</xtce:EntryList>
+			</xtce:SequenceContainer>
+			<xtce:SequenceContainer abstract="true" name="CCSDSTelemetryPacket">
+				<xtce:LongDescription>Super-container for all CCSDS telemetry
+packets.</xtce:LongDescription>
+				<xtce:EntryList/>
+				<xtce:BaseContainer containerRef="CCSDSPacket">
+					<xtce:RestrictionCriteria>
+						<xtce:ComparisonList>
+							<xtce:Comparison value="0"
+parameterRef="CCSDSVersion"/>
+							<xtce:Comparison value="0"
+parameterRef="CCSDSType"/>
+						</xtce:ComparisonList>
+					</xtce:RestrictionCriteria>
+				</xtce:BaseContainer>
+			</xtce:SequenceContainer>
+			<xtce:SequenceContainer idlePattern="0x0" name="PowmX0EP_StatusPacket">
+				<xtce:AncillaryDataSet>
+					<xtce:AncillaryData name="VCID"
+mimeType="text/plain">6</xtce:AncillaryData>
+					<xtce:AncillaryData name="SystemName"
+mimeType="text/plain">PowmX0</xtce:AncillaryData>
+				</xtce:AncillaryDataSet>
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="TimeStamp"/>
+					<xtce:ParameterRefEntry
+parameterRef="PowmX0EP_Voltage"/>
+					<xtce:ParameterRefEntry
+parameterRef="PowmX0EP_Current"/>
+					<xtce:ParameterRefEntry
+parameterRef="PowmX0PPS_Source"/>
+					<xtce:ParameterRefEntry parameterRef="PowmX0EP_MaxCur"/>
+					<xtce:ParameterRefEntry
+parameterRef="PowmX0Bus_Voltage"/>
+					<xtce:ParameterRefEntry
+parameterRef="PowmX0EP_PowerState"/>
+					<xtce:ParameterRefEntry
+parameterRef="PowmX0EP_SetPoint"/>
+				</xtce:EntryList>
+				<xtce:BaseContainer containerRef="CCSDSTelemetryPacket">
+					<xtce:RestrictionCriteria>
+						<xtce:Comparison comparisonOperator="=="
+value="47" instance="0" useCalibratedValue="true" parameterRef="CCSDSAPID"/>
+					</xtce:RestrictionCriteria>
+				</xtce:BaseContainer>
+			</xtce:SequenceContainer>
+		</xtce:ContainerSet>
+	</xtce:TelemetryMetaData>
+	<xtce:CommandMetaData>
+		<xtce:ArgumentTypeSet>
+			<xtce:IntegerArgumentType sizeInBits="32" signed="false"
+name="PM1Msg_TypeType">
+				<xtce:IntegerDataEncoding encoding="unsigned" sizeInBits="8"
+bitOrder="mostSignificantBitFirst"/>
+			</xtce:IntegerArgumentType>
+			<xtce:IntegerArgumentType sizeInBits="32" signed="false"
+name="PM1AddressType">
+				<xtce:IntegerDataEncoding encoding="unsigned" sizeInBits="32"
+bitOrder="mostSignificantBitFirst"/>
+			</xtce:IntegerArgumentType>
+			<xtce:IntegerArgumentType sizeInBits="32" signed="false" name="PM1PortType">
+				<xtce:IntegerDataEncoding encoding="unsigned" sizeInBits="16"
+bitOrder="mostSignificantBitFirst"/>
+			</xtce:IntegerArgumentType>
+			<xtce:IntegerArgumentType sizeInBits="32" signed="false"
+name="PM1Sensor_IDType">
+				<xtce:IntegerDataEncoding encoding="unsigned" sizeInBits="32"
+bitOrder="mostSignificantBitFirst"/>
+			</xtce:IntegerArgumentType>
+		</xtce:ArgumentTypeSet>
+		<xtce:MetaCommandSet>
+			<xtce:MetaCommand abstract="true" name="CCSDSCommand">
+				<xtce:LongDescription>Super-Command for all CCSDS
+commands.</xtce:LongDescription>
+				<xtce:CommandContainer name="CCSDSCommandPacket">
+					<xtce:LongDescription>Super-container for all CCSDS command
+packets.</xtce:LongDescription>
+					<xtce:EntryList/>
+					<xtce:BaseContainer containerRef="CCSDSPacket">
+						<xtce:RestrictionCriteria>
+							<xtce:ComparisonList>
+								<xtce:Comparison value="0"
+parameterRef="CCSDSVersion"/>
+								<xtce:Comparison value="1"
+parameterRef="CCSDSType"/>
+							</xtce:ComparisonList>
+						</xtce:RestrictionCriteria>
+					</xtce:BaseContainer>
+				</xtce:CommandContainer>
+			</xtce:MetaCommand>
+			<xtce:MetaCommand abstract="false" name="PM1Enable_Logging">
+				<xtce:BaseMetaCommand metaCommandRef="CCSDSCommand"/>
+				<xtce:SystemName>PM1</xtce:SystemName>
+				<xtce:ArgumentList>
+					<xtce:Argument argumentTypeRef="PM1Msg_TypeType"
+name="PM1Msg_Type"/>
+					<xtce:Argument argumentTypeRef="PM1AddressType"
+name="PM1Address"/>
+					<xtce:Argument argumentTypeRef="PM1PortType"
+name="PM1Port"/>
+					<xtce:Argument argumentTypeRef="PM1Sensor_IDType"
+name="PM1Sensor_ID"/>
+				</xtce:ArgumentList>
+				<xtce:CommandContainer name="PM1Enable_LoggingPacket">
+					<xtce:AncillaryDataSet>
+						<xtce:AncillaryData name="VCID"
+mimeType="text/plain">27</xtce:AncillaryData>
+					</xtce:AncillaryDataSet>
+					<xtce:EntryList>
+						<xtce:ArgumentRefEntry argumentRef="PM1Msg_Type"/>
+						<xtce:ArgumentRefEntry argumentRef="PM1Address"/>
+						<xtce:ArgumentRefEntry argumentRef="PM1Port"/>
+						<xtce:ArgumentRefEntry argumentRef="PM1Sensor_ID"/>
+					</xtce:EntryList>
+					<xtce:BaseContainer containerRef="CCSDSCommandPacket">
+						<xtce:RestrictionCriteria>
+							<xtce:Comparison comparisonOperator="=="
+value="130" instance="0" useCalibratedValue="true" parameterRef="CCSDSAPID"/>
+						</xtce:RestrictionCriteria>
+					</xtce:BaseContainer>
+				</xtce:CommandContainer>
+			</xtce:MetaCommand>
+		</xtce:MetaCommandSet>
+	</xtce:CommandMetaData>
+</xtce:SpaceSystem>
