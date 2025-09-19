@@ -16,8 +16,10 @@ class SpaceSystemEncoder:
     def __init__(self, space_system: xtceschema.SpaceSystem):
         self.space_system = space_system
 
-    def _build_entry_plan(self, message_type: xtceschema.MetaCommand | xtceschema.SequenceContainer) -> list:
-        plan = list()
+    def _build_entry_plan(self, message_type: xtceschema.MetaCommand | xtceschema.SequenceContainer) -> [list, list]:
+        # Return a list of entries along with their required include condtions or restrictions
+        plan = list() # list of tuples - first item is an entry and second a list of required conditions
+        restrictions = list()
 
         # Start by following inheritance chain of CommandContainers
         if isinstance(message_type, xtceschema.MetaCommand):
@@ -50,30 +52,39 @@ class SpaceSystemEncoder:
             while True:
                 if con.entryList and con.entryList.ordered_children:
                     new_plan = []
+                    new_restrictions = []
                     for ent in con.entryList.ordered_children:
                         if isinstance(ent, xtceschema.ContainerRefEntry):
                             embedded_con = self.space_system.get_sequence_container(ent.containerRef)
-                            embedded_plan = self._build_entry_plan(embedded_con)
+                            embedded_plan, embedded_restrictions = self._build_entry_plan(embedded_con)
                             new_conditions = list(ent.includeCondition.comparison)
                             for embedded_entry, embedded_conditions in embedded_plan:
-                                conditions = new_conditions + list(embedded_conditions or [])
-                                new_plan.append((embedded_entry, conditions))
+                                include_conditions = new_conditions + list(embedded_conditions or [])
+                                new_plan.append((embedded_entry, include_conditions))
+                                new_restrictions = new_restrictions + embedded_restrictions
                         else:
                             new_plan.append((ent, None))
 
                     plan = new_plan + plan
+                    restrictions = new_restrictions + restrictions
 
                 # Chain stops here
                 if not con.baseContainer:
                     break
 
+                if con.baseContainer.restrictionCriteria:
+                    if con.baseContainer.restrictionCriteria.comparison:
+                        restrictions.append(con.baseContainer.restrictionCriteria.comparison)
+                    else:
+                        restrictions.extend(list(con.baseContainer.restrictionCriteria.comparisonList or []))
+
                 next_con_ref = con.baseContainer.containerRef
                 con = self.space_system.get_container(next_con_ref)
 
-        return plan
+        return plan, restrictions
 
     def encode(self, msg: Message) -> bitarray:
-        plan = self._build_entry_plan(msg.message_type)
+        plan, restrictions = self._build_entry_plan(msg.message_type)
 
         arg_type_idx = dict()
         if isinstance(msg.message_type, xtceschema.MetaCommand):
@@ -121,16 +132,52 @@ class SpaceSystemEncoder:
         encoded = bitarray(list(itertools.chain(*encoded_entries)))
         return encoded
 
+
     def decode(self, message_type: xtceschema.SequenceContainer | xtceschema.MetaCommand, b: bitarray) -> Message:
+        # Decode a bitarray using a specific message type.
+        #
+        # If the provided message type is abstract, then its inheritors are evaluated based on their restriction criteria.
+        # Assuming a match is found, the inheritor will be used to decode the message and will be returned to the caller.
+        #
+        # If the message can be decoded fully into the abstract type (i.e. no remaining bits), then no inheritors are considered.
+        #
+        bak = b.copy()
+
+        msg, rem = self._decode_message(message_type, b)
+        if not rem:
+            return msg
+
+        n_rem = len(rem)
+
+        if not message_type.abstract:
+            raise ValueError(f'{n_rem}b remain to decode yet message type {message_type.name} not abstract')
+
+        inheritors = self.space_system.find_inheritors(message_type)
+        for inh in inheritors:
+            #NOTE(bcwaldon): this is a hack and somewhat wasteful
+            try:
+                return self.decode(inh, bak.copy())
+            except Exception as exc:
+                continue
+
+        raise ValueError(f'no inheritor of {message_type.name} found to handle remaining {n_rem}b of message')
+
+    def _decode_message(self, message_type: xtceschema.SequenceContainer | xtceschema.MetaCommand, b: bitarray) -> (Message, bitarray):
         msg = Message(
             message_type=message_type,
             entries=dict(),
         )
 
-        plan = self._build_entry_plan(message_type)
+        plan, restrictions = self._build_entry_plan(message_type)
+
+        restriction_idx = {}
+        for cond in restrictions:
+            if cond.parameterRef not in restriction_idx:
+                restriction_idx[cond.parameterRef] = []
+            restriction_idx[cond.parameterRef] += cond
 
         arg_type_idx = dict()
-        if isinstance(message_type, xtceschema.MetaCommand):
+        if isinstance(message_type, xtceschema.MetaCommand) and message_type.argumentList:
             arg_type_idx.update(dict([(arg.name, arg.argumentTypeRef) for arg in message_type.argumentList.argument]))
 
         def pop_entry(b: bytearray, ent_name: str, ent_type_name: str):
@@ -150,11 +197,11 @@ class SpaceSystemEncoder:
 
                 if got != cond.value:
                     return False
-
             return True
 
         for (ent, conds) in plan:
             if conds and not conditions_met(conds):
+                # simply ignore in this case
                 continue
 
             if isinstance(ent, xtceschema.ArgumentRefEntry):
@@ -165,6 +212,9 @@ class SpaceSystemEncoder:
                 ent_name = ent.parameterRef
                 ent_type_name = self.space_system.get_parameter(ent_name).parameterTypeRef
                 pop_entry(b, ent_name, ent_type_name)
+                if ent_name in restriction_idx and not conditions_met(restriction_idx[ent_name]):
+                    raise ValueError(f'restriction criteria violated for entry {ent_name}')
+
             elif isinstance(ent, xtceschema.FixedValueEntry):
                 encoded_entry, b = b[:ent.sizeInBits], b[ent.sizeInBits:]
                 if encoded_entry != ent.value:
@@ -172,4 +222,4 @@ class SpaceSystemEncoder:
             else:
                 raise ValueError(f'unable to decode {ent.__class__}')
 
-        return msg
+        return msg, b

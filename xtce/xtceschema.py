@@ -393,9 +393,6 @@ class BooleanParameterType(BaseType):
         return self._encoding.decode(value)
 
 
-
-
-
 class Comparison(BaseType):
     comparisonOperator: str
     value: str
@@ -764,6 +761,19 @@ class SpaceSystem(BaseType):
             return idx[name]
         except KeyError:
             raise ValueError(f"unknown container: {name}")
+
+    # find the MetaCommands and SequenceContainers that identify a BaseContainer using the name provided
+    def find_inheritors(self, message_type):
+        if isinstance(message_type, MetaCommand):
+            match_container_ref = message_type.commandContainer.name
+        else:
+            match_container_ref = message_type.name
+
+        match = []
+        match.extend([sc for sc in self.telemetryMetaData.containerSet.sequenceContainer if sc.baseContainer and sc.baseContainer.containerRef == match_container_ref])
+        match.extend([mc for mc in self.commandMetaData.metaCommandSet.metaCommand if mc.commandContainer.baseContainer and mc.commandContainer.baseContainer.containerRef == match_container_ref])
+
+        return match
 
 
 def from_file(file_location: str):

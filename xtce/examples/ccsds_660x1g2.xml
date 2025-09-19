@@ -185,7 +185,7 @@ argumentRef="TimerStartStop"/>
 						<xtce:RestrictionCriteria>
 							<xtce:ComparisonList>
 								<xtce:Comparison
-parameterRef="ID" value="256"/>
+parameterRef="ID" value="255"/>
 								<xtce:Comparison
 parameterRef="Type" value="0"/>
 								<xtce:Comparison

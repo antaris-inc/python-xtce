@@ -1,4 +1,5 @@
-
+The example files contained in this directory are intended to support development of the repo, and provide some examples to others that might be using XTCE.
+Each example is described below, with a reference to their source and any modifications applied:
 * BogusSAT/BogusSAT_modified.xml is a modified copy of BogusSAT-1.xml from gitlab.com/dovreem/xtcetools
     * Link to upstream: https://gitlab.com/dovereem/xtcetools/-/blob/2ed141930fd4bde109191343183d10a0388db121/src/test/resources/org/xtce/toolkit/test/BogusSAT-1.xml
     * Changes applied in order to meet final XTCE v1.2 schema:
@@ -10,5 +11,7 @@
         * Reordered BaseContainer and EntryList to meet requirement (EntryList first)
         * Added required Fixed and FixedValue child elements to StringDataEncoding where required. FixedValue content is a guess
 * ccsds_660x1g2.xml is copied from CCSDS Green Book 660x1g2 (https://ccsds.org/Pubs/660x1g2.pdf) section ANNEX A
+    * Changes applied:
+        * Replaced restriction criteria for PWHTMR to match ID=255 instead of 256, as 255 does not fit in Header.ID field size
 * ccsds_660x2g2.xml is copied from CCSDS Green Book 660x2g2 (https://ccsds.org/Pubs/660x2g2.pdf)
 
