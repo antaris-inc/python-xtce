@@ -145,3 +145,16 @@ class TestCCSDS_660x2g2(unittest.TestCase):
         cmd2 = enc.decode(cmd.message_type, got)
         self.assertEqual(cmd.entries, cmd2.entries)
 
+
+
+
+class TestBogusSat(unittest.TestCase):
+    parent = os.path.join(_DIR, './BogusSAT')
+    loc = os.path.join(_DIR, './BogusSAT/BogusSAT_modified.xml')
+
+    def test_sanity(self):
+        ss = xtceschema.from_file(self.loc)
+        self.assertEqual(ss.name, 'BogusSAT')
+
+
+

@@ -6,7 +6,7 @@ import typing
 
 from bitarray import bitarray
 import numpy as np
-from pydantic import BaseModel, conlist
+from pydantic import BaseModel, conlist, ConfigDict
 import xmlschema
 
 
@@ -75,7 +75,10 @@ class BaseType(BaseModel):
                 # find pydantic.BaseModel field type via annotation attribute
                 child_field_cls = cls.model_fields[child_field].annotation
             except KeyError:
-                raise Exception(f'{cls} does not support child field "{child_field}"')
+                #NOTE(bcwaldon): should enforce this once all examples contained in
+                # this repository are fully supported
+                #raise Exception(f'{cls} does not support child field "{child_field}"')
+                continue
 
             #TODO(bcwaldon): find a more elegant way to detect a list-type pydantic.BaseModel.field
             try:
@@ -99,9 +102,9 @@ class BaseType(BaseModel):
 
 
 class Unit(BaseType):
+    description: str = None
     power: float
     factor: int
-    description: str
     form: str
     value: str
 
@@ -144,7 +147,7 @@ class PolynomialCalibrator(BaseType):
 
 
 class DefaultCalibrator(BaseType):
-    polynomialCalibrator: PolynomialCalibrator
+    polynomialCalibrator: PolynomialCalibrator = None
 
     #TODO(bcwaldon): other calibrators not yet implemented
 
@@ -174,10 +177,12 @@ class SignedEnum(str, enum.Enum):
     twosComplement = 'twosComplement'
 
     #TODO(bcwaldon): not yet implemented
-    #signMagnitude = 'signMagnitude'
-    #onesComplement = 'onesComplement'
-    #BCD = 'BCD'
-    #packedBCD = 'packedBCD'
+    signMagnitude = 'signMagnitude'
+    IEEE754_1985 = 'IEEE754_1985'
+    MILSTD_1750A = 'MILSTD_1750A'
+    onesComplement = 'onesComplement'
+    BCD = 'BCD'
+    packedBCD = 'packedBCD'
 
 
 class SizeInBits(BaseType):
@@ -188,6 +193,14 @@ class BinaryEncoding(BaseType):
     bitOrder: str = BitOrderEnum.MSB
     byteOrder: str = ByteOrderEnum.MSB
     sizeInBits: SizeInBits
+
+
+class FloatDataEncoding(BaseType):
+    encoding: SignedEnum = SignedEnum.unsigned
+    sizeInBits: int = 8
+    changeThreshold: float = None
+
+    #NOTE(bcwaldon): not implemented
 
 
 class IntegerDataEncoding(BaseType):
@@ -228,14 +241,23 @@ class IntegerDataEncoding(BaseType):
         return dec
 
 
+class ValidRange(BaseType):
+    minInclusive: float
+    maxInclusive: float
+
+
 class integerBaseType(BaseType):
     name: str
+    shortDescription: str = None
+    longDescription: str = None
+
     signed: bool = True
     #TODO(bcwaldon): confirm input values respect this field size
     sizeInBits: int = 32
     unitSet: UnitSet = None
 
     integerDataEncoding: IntegerDataEncoding = None
+    validRange: ValidRange = None
 
     @property
     def _encoding(self):
@@ -265,18 +287,23 @@ class IntegerArgumentType(integerBaseType):
 
 class floatBaseType(BaseType):
     name: str
+    shortDescription: str = None
+    longDescription: str = None
+
     sizeInBits: int = 64
     unitSet: UnitSet = None
 
     integerDataEncoding: IntegerDataEncoding = None
-
+    floatDataEncoding: FloatDataEncoding = None
 
     @property
     def _encoding(self):
         if self.integerDataEncoding:
             return self.integerDataEncoding
+        elif self.floatDataEncoding:
+            return self.floatDataEncoding
 
-        return IntegerDataEncoding()
+        return FloatDataEncoding()
 
     @property
     def encoded_bit_length(self) -> int:
@@ -297,6 +324,76 @@ class FloatParameterType(floatBaseType):
 
 class FloatArgumentType(floatBaseType):
     pass
+
+class Fixed(BaseType):
+    fixedValue: int
+
+class SizeInBits(BaseType):
+    fixed: Fixed
+    terminationChar: str = b'0x00'
+
+class StringDataEncoding(BaseType):
+    sizeInBits: SizeInBits
+
+class StringParameterType(BaseType):
+    name: str
+    shortDescription: str = None
+    longDescription: str = None
+
+    unitSet: UnitSet = None
+
+    stringDataEncoding: StringDataEncoding = None
+
+    @property
+    def _encoding(self):
+        if self.stringDataEncoding:
+            return self.stringDataEncoding
+
+        return StringDataEncoding()
+
+    def encode(self, value: int) -> bytearray:
+        return self._encoding.encode(value)
+
+    @property
+    def encoded_bit_length(self) -> int:
+        return self._encoding.sizeInBits
+
+    def decode(self, value: bytearray) -> int:
+        return self._encoding.decode(value)
+
+
+class BooleanParameterType(BaseType):
+    name: str
+    shortDescription: str = None
+    longDescription: str = None
+
+    unitSet: UnitSet = None
+
+    initialValue: str = None
+    zeroStringValue: str
+    oneStringValue: str
+
+    integerDataEncoding: IntegerDataEncoding = None
+
+    @property
+    def _encoding(self):
+        if self.integerDataEncoding:
+            return self.integerDataEncoding
+
+        return IntegerDataEncoding()
+
+    def encode(self, value: int) -> bytearray:
+        return self._encoding.encode(value)
+
+    @property
+    def encoded_bit_length(self) -> int:
+        return self._encoding.sizeInBits
+
+    def decode(self, value: bytearray) -> int:
+        return self._encoding.decode(value)
+
+
+
 
 
 class Comparison(BaseType):
@@ -426,8 +523,14 @@ class Parameter(BaseType):
     parameterProperties: ParameterProperties = None
 
 
+class LocationInContainerInBits(BaseType):
+    referenceLocation: str
+    fixedValue: int
+
 class ParameterRefEntry(BaseType):
     parameterRef: str
+    includeCondition: ComparisonList = None
+    locationInContainerInBits: LocationInContainerInBits = None
 
 
 class ArgumentRefEntry(BaseType):
@@ -556,6 +659,8 @@ class ParameterTypeSet(BaseType):
     floatParameterType: list[FloatParameterType] = None
     absoluteTimeParameterType: list[AbsoluteTimeParameterType] = None
     enumeratedParameterType: list[EnumeratedParameterType] = None
+    stringParameterType: list[StringParameterType] = None
+    booleanParameterType: list[BooleanParameterType] = None
 
 
 class ParameterSet(BaseType):
@@ -592,10 +697,12 @@ class CommandMetaData(BaseType):
 
 class SpaceSystem(BaseType):
     name: str
+    shortDescription: str = ''
     longDescription: str = ''
     header: str = ''
-    telemetryMetaData: TelemetryMetaData
-    commandMetaData: CommandMetaData
+    telemetryMetaData: TelemetryMetaData = None
+    commandMetaData: CommandMetaData = None
+    spaceSystem: list['SpaceSystem'] = None
 
     def get_entry_type(self, name):
         parameter_type_sets = (
