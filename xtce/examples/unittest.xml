@@ -89,6 +89,17 @@
 				</xtce:CommandContainer>
 			</xtce:MetaCommand>
 
+			<xtce:MetaCommand abstract="false" name="Command_NOARG">
+				<xtce:CommandContainer name="Command_NOARG">
+					<xtce:EntryList/>
+					<xtce:BaseContainer containerRef="CommandMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:Comparison  parameterRef="MessageID" value="98"/>
+						</xtce:RestrictionCriteria>
+					</xtce:BaseContainer>
+				</xtce:CommandContainer>
+			</xtce:MetaCommand>
+
 		</xtce:MetaCommandSet>
 	</xtce:CommandMetaData>
 </xtce:SpaceSystem>

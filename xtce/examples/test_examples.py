@@ -285,3 +285,26 @@ class TestUnittest(unittest.TestCase):
         want = bitarray(bytes([1, 11, 36, 99, 42]))
 
         self.assertEqual(want, got)
+
+    # Ensure concrete message will be decoded properly even if no arguments are
+    # present and the message could be decoded "correctly" as abstract.
+    def test_decode_noarg(self):
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        arg = bitarray(bytes([1, 11, 32, 98]))
+
+        got = enc.decode(ss.get_sequence_container('MessageBase'), arg, require_concrete=True)
+
+        want = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_NOARG'),
+            entries={
+                'MessageType': 1,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 98,
+            }
+        )
+
+        self.assertEqual(want, got)

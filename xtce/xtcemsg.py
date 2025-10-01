@@ -151,18 +151,22 @@ class SpaceSystemEncoder:
         return encoded
 
 
-    def decode(self, message_type: xtceschema.SequenceContainer | xtceschema.MetaCommand, b: bitarray) -> Message:
+    def decode(self, message_type: xtceschema.SequenceContainer | xtceschema.MetaCommand, b: bitarray, require_concrete=False) -> Message:
         # Decode a bitarray using a specific message type.
         #
         # If the provided message type is abstract, then its inheritors are evaluated based on their restriction criteria.
         # Assuming a match is found, the inheritor will be used to decode the message and will be returned to the caller.
         #
-        # If the message can be decoded fully into the abstract type (i.e. no remaining bits), then no inheritors are considered.
+        # When require_concrete=False: if the indicated message type is abstract, consider decoding successful if the full message
+        # can be decoded.
+        #
+        # When require_concrete=True: do not consider abstract message types for final decoding. Useful when concrete types have
+        # the same message length as abstract types.
         #
         bak = b.copy()
 
         msg, rem = self._decode_message(message_type, b)
-        if not rem:
+        if not rem and (not message_type.abstract or not require_concrete):
             return msg
 
         n_rem = len(rem)
@@ -174,7 +178,7 @@ class SpaceSystemEncoder:
         for inh in inheritors:
             #NOTE(bcwaldon): this is a hack and somewhat wasteful
             try:
-                return self.decode(inh, bak.copy())
+                return self.decode(inh, bak.copy(), require_concrete=require_concrete)
             except Exception as exc:
                 continue
 
