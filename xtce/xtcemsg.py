@@ -34,6 +34,12 @@ class SpaceSystemEncoder:
                     con = None
                     break
 
+                if con.baseContainer.restrictionCriteria:
+                    if con.baseContainer.restrictionCriteria.comparison:
+                        restrictions.append(con.baseContainer.restrictionCriteria.comparison)
+                    else:
+                        restrictions.extend(list(con.baseContainer.restrictionCriteria.comparisonList.ordered_children or []))
+
                 next_con_ref = con.baseContainer.containerRef
                 con = self.space_system.get_container(next_con_ref)
 
@@ -85,6 +91,18 @@ class SpaceSystemEncoder:
 
     def encode(self, msg: Message) -> bitarray:
         plan, restrictions = self._build_entry_plan(msg.message_type)
+
+        for comp in restrictions:
+            assert comp.comparisonOperator == '==', 'unsupported ComparisonOperator'
+            assert comp.instance == 0, 'unsupported instance'
+            assert comp.useCalibratedValue is True, 'unsupported useCalibratedValue'
+
+            #NOTE(bcwaldon): need to implement this check
+            #if comp.parameterRef in msg.entries and msg.entries[comp.parameterRef] != comp.value:
+            #   raise ValueError()
+
+            #NOTE(bcwaldon): unclear exactly how to handle casting from XML type to native datatype
+            msg.entries[comp.parameterRef] = int(comp.value)
 
         arg_type_idx = dict()
         if isinstance(msg.message_type, xtceschema.MetaCommand):
@@ -171,10 +189,10 @@ class SpaceSystemEncoder:
         plan, restrictions = self._build_entry_plan(message_type)
 
         restriction_idx = {}
-        for cond in restrictions:
-            if cond.parameterRef not in restriction_idx:
-                restriction_idx[cond.parameterRef] = []
-            restriction_idx[cond.parameterRef].append(cond)
+        for comp in restrictions:
+            if comp.parameterRef not in restriction_idx:
+                restriction_idx[comp.parameterRef] = []
+            restriction_idx[comp.parameterRef].append(comp)
 
         arg_type_idx = dict()
         if isinstance(message_type, xtceschema.MetaCommand) and message_type.argumentList:

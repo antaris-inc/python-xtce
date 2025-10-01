@@ -67,7 +67,7 @@ class TestCCSDS_660x1g2(unittest.TestCase):
         cmd = xtcemsg.Message(
             message_type=ss.get_meta_command('PWHTMR'),
             entries={
-                'ID': 0x10,
+                'ID': 16, # will be overridden to 255 due to restriction criteria
                 'SecH': 0,
                 'Type': 0,
                 'Length': 0,
@@ -76,7 +76,7 @@ class TestCCSDS_660x1g2(unittest.TestCase):
             },
         )
 
-        want = bitarray('0001000000000000000000000000011110000011000000000000000001')
+        want = bitarray('1111111100000000000000000000011110000011000000000000000001')
         got = enc.encode(cmd)
         self.assertEqual(want, got)
 
@@ -261,5 +261,27 @@ class TestUnittest(unittest.TestCase):
                 'Nonce': 42,
             }
         )
+
+        self.assertEqual(want, got)
+
+    # Ensure restriction criteria cause entries to be set automatically on encode.
+    def test_encode_restriction_criteria(self):
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+
+        msg = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_Ping'),
+            entries={
+                'MessageSource': 36,
+                'MessageDestination': 11,
+                'Nonce': 42,
+                # MessageType (1) and MessageID (99) should be set automatically
+            }
+        )
+        got = enc.encode(msg)
+
+        want = bitarray(bytes([1, 11, 36, 99, 42]))
 
         self.assertEqual(want, got)
