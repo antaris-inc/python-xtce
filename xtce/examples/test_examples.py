@@ -237,4 +237,29 @@ class TestBogusSat(unittest.TestCase):
         self.assertEqual(ss.name, 'BogusSAT')
 
 
+class TestUnittest(unittest.TestCase):
+    loc = os.path.join(_DIR, './unittest.xml')
 
+    # Tests for a branching decode with multiple layers
+    # of nested restriction criteria
+    def test_decode_abstract_branching(self):
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        arg = bitarray(bytes([2, 10, 35, 99, 42]))
+
+        got = enc.decode(ss.get_sequence_container('MessageBase'), arg)
+
+        want = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_Ping'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 35,
+                'MessageDestination': 10,
+                'MessageID': 99,
+                'Nonce': 42,
+            }
+        )
+
+        self.assertEqual(want, got)

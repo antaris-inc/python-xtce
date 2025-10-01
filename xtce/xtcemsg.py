@@ -76,7 +76,7 @@ class SpaceSystemEncoder:
                     if con.baseContainer.restrictionCriteria.comparison:
                         restrictions.append(con.baseContainer.restrictionCriteria.comparison)
                     else:
-                        restrictions.extend(list(con.baseContainer.restrictionCriteria.comparisonList or []))
+                        restrictions.extend(list(con.baseContainer.restrictionCriteria.comparisonList.ordered_children or []))
 
                 next_con_ref = con.baseContainer.containerRef
                 con = self.space_system.get_container(next_con_ref)
@@ -174,7 +174,7 @@ class SpaceSystemEncoder:
         for cond in restrictions:
             if cond.parameterRef not in restriction_idx:
                 restriction_idx[cond.parameterRef] = []
-            restriction_idx[cond.parameterRef] += cond
+            restriction_idx[cond.parameterRef].append(cond)
 
         arg_type_idx = dict()
         if isinstance(message_type, xtceschema.MetaCommand) and message_type.argumentList:

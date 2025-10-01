@@ -1,0 +1,94 @@
+<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/spec/XTCE/20180204" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="unittest">
+	<xtce:Header validationStatus="Validated" date="2019-04-04"	version="0.2"/>
+	<xtce:TelemetryMetaData>
+		<xtce:ParameterTypeSet>
+			<xtce:IntegerParameterType signed="false" name="MessageType"/>
+			<xtce:IntegerParameterType signed="false" name="MessageDestination"/>
+			<xtce:IntegerParameterType signed="false" name="MessageSource"/>
+			<xtce:IntegerParameterType signed="false" name="MessageID"/>
+			<xtce:IntegerParameterType signed="false" name="AnyByte"/>
+		</xtce:ParameterTypeSet>
+
+		<xtce:ParameterSet>
+			<xtce:Parameter parameterTypeRef="MessageType" name="MessageType" />
+			<xtce:Parameter parameterTypeRef="MessageDestination" name="MessageDestination" />
+			<xtce:Parameter parameterTypeRef="MessageSource" name="MessageSource" />
+			<xtce:Parameter parameterTypeRef="MessageID" name="MessageID" />
+			<xtce:Parameter parameterTypeRef="AnyByte" name="Nonce" />
+		</xtce:ParameterSet>
+
+		<xtce:ContainerSet>
+			<xtce:SequenceContainer abstract="true" name="MessageBase">
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="MessageType"/>
+					<xtce:ParameterRefEntry parameterRef="MessageDestination"/>
+					<xtce:ParameterRefEntry parameterRef="MessageSource"/>
+					<xtce:ParameterRefEntry parameterRef="MessageID"/>
+				</xtce:EntryList>
+			</xtce:SequenceContainer>
+
+			<xtce:SequenceContainer abstract="true" name="ReplyMessageBase">
+				<xtce:EntryList/>
+				<xtce:BaseContainer containerRef="MessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:ComparisonList>
+								<xtce:Comparison parameterRef="MessageType" value="2"/>
+							</xtce:ComparisonList>
+						</xtce:RestrictionCriteria>
+				</xtce:BaseContainer>
+			</xtce:SequenceContainer>
+
+			<xtce:SequenceContainer abstract="false" name="Reply_Ping">
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="Nonce"/>
+				</xtce:EntryList>
+				<xtce:BaseContainer containerRef="ReplyMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:ComparisonList>
+								<xtce:Comparison parameterRef="MessageID" value="99"/>
+							</xtce:ComparisonList>
+						</xtce:RestrictionCriteria>
+				</xtce:BaseContainer>
+			</xtce:SequenceContainer>
+
+		</xtce:ContainerSet>
+
+	</xtce:TelemetryMetaData>
+	<xtce:CommandMetaData>
+		<xtce:ArgumentTypeSet>
+			<xtce:IntegerArgumentType name="AnyByte"/>
+		</xtce:ArgumentTypeSet>
+
+		<xtce:MetaCommandSet>
+			<xtce:MetaCommand abstract="true" name="CommandMessageBase">
+				<xtce:CommandContainer name="CommandMessageBase">
+					<xtce:EntryList/>
+					<xtce:BaseContainer containerRef="MessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:ComparisonList>
+								<xtce:Comparison parameterRef="MessageType" value="1"/>
+							</xtce:ComparisonList>
+						</xtce:RestrictionCriteria>
+					</xtce:BaseContainer>
+				</xtce:CommandContainer>
+			</xtce:MetaCommand>
+
+			<xtce:MetaCommand abstract="false" name="Command_Ping">
+				<xtce:ArgumentList>
+					<xtce:Argument argumentTypeRef="AnyByte" name="Nonce"/>
+				</xtce:ArgumentList>
+				<xtce:CommandContainer name="Command_Ping">
+					<xtce:EntryList>
+						<xtce:ArgumentRefEntry argumentRef="Nonce"/>
+					</xtce:EntryList>
+					<xtce:BaseContainer containerRef="CommandMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:Comparison  parameterRef="MessageID" value="99"/>
+						</xtce:RestrictionCriteria>
+					</xtce:BaseContainer>
+				</xtce:CommandContainer>
+			</xtce:MetaCommand>
+
+		</xtce:MetaCommandSet>
+	</xtce:CommandMetaData>
+</xtce:SpaceSystem>
