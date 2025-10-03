@@ -9,6 +9,14 @@ from xtce import xtceschema, xtcemsg
 _DIR = os.path.dirname(os.path.abspath(__file__))
 
 
+class TestLoad(unittest.TestCase):
+
+    def test_from_bytes(self):
+        loc = os.path.join(_DIR, './ccsds_660x1g2.xml')
+        with open(loc, 'rb') as f:
+            xtceschema.from_bytes(f.read())
+
+
 class TestCCSDS_660x1g2(unittest.TestCase):
     loc = os.path.join(_DIR, './ccsds_660x1g2.xml')
 

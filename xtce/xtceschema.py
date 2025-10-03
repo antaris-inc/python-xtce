@@ -777,10 +777,14 @@ class SpaceSystem(BaseType):
 
 
 def from_file(file_location: str):
+    with open(file_location, 'rb') as f:
+        xml_doc = f.read()
+
+    return from_bytes(xml_doc)
+
+
+def from_bytes(xml_doc: bytes):
     xs = _load_xtce_xsd()
 
-    with open(file_location, 'rb') as f:
-        doc = f.read()
-
-    node = xmlnode(xs.to_dict(doc, converter=xmlschema.JsonMLConverter, path='/xtce:SpaceSystem'))
+    node = xmlnode(xs.to_dict(xml_doc, converter=xmlschema.JsonMLConverter, path='/xtce:SpaceSystem'))
     return SpaceSystem._from_xmlnode(node)
