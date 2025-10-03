@@ -106,7 +106,13 @@ class SpaceSystemEncoder:
 
         arg_type_idx = dict()
         if isinstance(msg.message_type, xtceschema.MetaCommand):
-            arg_type_idx.update(dict([(arg.name, arg.argumentTypeRef) for arg in msg.message_type.argumentList.argument]))
+            cur = msg.message_type
+            while True:
+                if cur.argumentList and cur.argumentList.argument:
+                    arg_type_idx.update(dict([(arg.name, arg.argumentTypeRef) for arg in cur.argumentList.argument]))
+                if not cur.baseMetaCommand or not cur.baseMetaCommand.metaCommandRef:
+                    break
+                cur = self.space_system.get_meta_command(cur.baseMetaCommand.metaCommandRef)
 
         encoded_entries = list[bitarray]()
 
@@ -199,8 +205,14 @@ class SpaceSystemEncoder:
             restriction_idx[comp.parameterRef].append(comp)
 
         arg_type_idx = dict()
-        if isinstance(message_type, xtceschema.MetaCommand) and message_type.argumentList:
-            arg_type_idx.update(dict([(arg.name, arg.argumentTypeRef) for arg in message_type.argumentList.argument]))
+        if isinstance(message_type, xtceschema.MetaCommand):
+            cur = msg.message_type
+            while True:
+                if cur.argumentList and cur.argumentList.argument:
+                    arg_type_idx.update(dict([(arg.name, arg.argumentTypeRef) for arg in cur.argumentList.argument]))
+                if not cur.baseMetaCommand or not cur.baseMetaCommand.metaCommandRef:
+                    break
+                cur = self.space_system.get_meta_command(cur.baseMetaCommand.metaCommandRef)
 
         def pop_entry(b: bytearray, ent_name: str, ent_type_name: str):
             ent_type = self.space_system.get_entry_type(ent_type_name)

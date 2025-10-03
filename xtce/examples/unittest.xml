@@ -61,8 +61,13 @@
 
 		<xtce:MetaCommandSet>
 			<xtce:MetaCommand abstract="true" name="CommandMessageBase">
+				<xtce:ArgumentList>
+					<xtce:Argument argumentTypeRef="AnyByte" name="Intermediate"/>
+				</xtce:ArgumentList>
 				<xtce:CommandContainer name="CommandMessageBase">
-					<xtce:EntryList/>
+					<xtce:EntryList>
+						<xtce:ArgumentRefEntry argumentRef="Intermediate"/>
+					</xtce:EntryList>
 					<xtce:BaseContainer containerRef="MessageBase">
 						<xtce:RestrictionCriteria>
 							<xtce:ComparisonList>
@@ -74,6 +79,7 @@
 			</xtce:MetaCommand>
 
 			<xtce:MetaCommand abstract="false" name="Command_Ping">
+				<xtce:BaseMetaCommand metaCommandRef="CommandMessageBase"/>
 				<xtce:ArgumentList>
 					<xtce:Argument argumentTypeRef="AnyByte" name="Nonce"/>
 				</xtce:ArgumentList>
@@ -90,6 +96,7 @@
 			</xtce:MetaCommand>
 
 			<xtce:MetaCommand abstract="false" name="Command_NOARG">
+				<xtce:BaseMetaCommand metaCommandRef="CommandMessageBase"/>
 				<xtce:CommandContainer name="Command_NOARG">
 					<xtce:EntryList/>
 					<xtce:BaseContainer containerRef="CommandMessageBase">

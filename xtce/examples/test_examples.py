@@ -276,13 +276,14 @@ class TestUnittest(unittest.TestCase):
             entries={
                 'MessageSource': 36,
                 'MessageDestination': 11,
+                'Intermediate': 12,
                 'Nonce': 42,
                 # MessageType (1) and MessageID (99) should be set automatically
             }
         )
         got = enc.encode(msg)
 
-        want = bitarray(bytes([1, 11, 36, 99, 42]))
+        want = bitarray(bytes([1, 11, 36, 99, 12, 42]))
 
         self.assertEqual(want, got)
 
@@ -293,7 +294,7 @@ class TestUnittest(unittest.TestCase):
 
         enc = xtcemsg.SpaceSystemEncoder(ss)
 
-        arg = bitarray(bytes([1, 11, 32, 98]))
+        arg = bitarray(bytes([1, 11, 32, 98, 12]))
 
         got = enc.decode(ss.get_sequence_container('MessageBase'), arg, require_concrete=True)
 
@@ -304,6 +305,7 @@ class TestUnittest(unittest.TestCase):
                 'MessageSource': 32,
                 'MessageDestination': 11,
                 'MessageID': 98,
+                'Intermediate': 12,
             }
         )
 
