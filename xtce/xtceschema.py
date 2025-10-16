@@ -1,4 +1,5 @@
 import enum
+import functools
 import math
 import os
 import itertools
@@ -229,7 +230,7 @@ class IntegerDataEncoding(BaseType):
 
     def decode(self, value: bitarray) -> [int | float]:
         if len(value) != self.sizeInBits:
-            raise ValueError('field size mismatch')
+            raise ValueError(f'field size mismatch: got={len(value)} want={self.sizeInBits}')
 
         dec = int.from_bytes(_pad_bits(value).tobytes(), signed=self._signed, byteorder='big')
 
@@ -360,6 +361,49 @@ class StringParameterType(BaseType):
 
     def decode(self, value: bytearray) -> int:
         return self._encoding.decode(value)
+
+
+class FixedValue(BaseType):
+    value: int
+
+class DimensionIndex(BaseType):
+    fixedValue: FixedValue
+
+class Dimension(BaseType):
+    startingIndex: DimensionIndex
+    endingIndex: DimensionIndex
+
+class DimensionList(BaseType):
+    # Have not implemented support for more than single dimension yet
+    dimension: conlist(Dimension, min_length=1, max_length=1)
+
+
+class ArrayParameterType(BaseType):
+    name: str
+    shortDescription: str = None
+    longDescription: str = None
+
+    arrayTypeRef: str
+    dimensionList: DimensionList = None
+
+    # initialized when used by encoder
+    itemParameterType: typing.Any = None
+
+    @property
+    def item_count(self):
+        return 1 + self.dimensionList.dimension[0].endingIndex.fixedValue.value - self.dimensionList.dimension[0].startingIndex.fixedValue.value
+
+    def encode(self, value: list) -> bitarray:
+        assert len(value) == self.item_count
+        return bitarray(itertools.chain(*[self.itemParameterType.encode(v) for v in value]))
+
+    @property
+    def encoded_bit_length(self) -> int:
+        return self.item_count * self.itemParameterType.encoded_bit_length
+
+    def decode(self, value: bitarray) -> list:
+        assert len(value) == self.encoded_bit_length
+        return [self.itemParameterType.decode(value[i*self.itemParameterType.encoded_bit_length:(i+1)*self.itemParameterType.encoded_bit_length]) for i in range(self.item_count)]
 
 
 class BooleanParameterType(BaseType):
@@ -658,6 +702,7 @@ class ParameterTypeSet(BaseType):
     enumeratedParameterType: list[EnumeratedParameterType] = None
     stringParameterType: list[StringParameterType] = None
     booleanParameterType: list[BooleanParameterType] = None
+    arrayParameterType: list[ArrayParameterType] = None
 
 
 class ParameterSet(BaseType):
@@ -701,7 +746,8 @@ class SpaceSystem(BaseType):
     commandMetaData: CommandMetaData = None
     spaceSystem: list['SpaceSystem'] = None
 
-    def get_entry_type(self, name):
+    @functools.cached_property
+    def _type_idx(self):
         parameter_type_sets = (
             self.telemetryMetaData.parameterTypeSet,
             self.commandMetaData.parameterTypeSet,
@@ -709,6 +755,7 @@ class SpaceSystem(BaseType):
         objs = list(itertools.chain(
             *[
                 itertools.chain(
+                    ts.arrayParameterType or [],
                     ts.integerParameterType or [],
                     ts.floatParameterType or [],
                     ts.absoluteTimeParameterType or [],
@@ -718,11 +765,21 @@ class SpaceSystem(BaseType):
             self.commandMetaData.argumentTypeSet.integerArgumentType or [],
             self.commandMetaData.argumentTypeSet.enumeratedArgumentType or [],
         ))
-        idx = dict([(o.name, o) for o in objs])
+        return dict([(o.name, o) for o in objs])
+
+    def get_entry_type(self, name):
         try:
-            return idx[name]
+            entry_type = self._type_idx[name]
         except KeyError:
             raise ValueError(f"unknown entry type: {name}")
+
+        if isinstance(entry_type, ArrayParameterType):
+            try:
+                entry_type.itemParameterType = self.get_entry_type(entry_type.arrayTypeRef)
+            except Exception as exc:
+                raise ValueError(f"failed to initialize array item type: {exc}")
+
+        return entry_type
 
     def get_parameter(self, name):
         paramsets = (

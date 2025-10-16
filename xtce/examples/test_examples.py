@@ -278,7 +278,6 @@ class TestUnittest(unittest.TestCase):
 
         enc = xtcemsg.SpaceSystemEncoder(ss)
 
-
         msg = xtcemsg.Message(
             message_type=ss.get_meta_command('Command_Ping'),
             entries={
@@ -316,5 +315,48 @@ class TestUnittest(unittest.TestCase):
                 'Intermediate': 12,
             }
         )
+
+        self.assertEqual(want, got)
+
+    def test_decode_fixed_array(self):
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        arg = bitarray(bytes([2, 11, 32, 97, 5, 6, 7, 8]))
+
+        got = enc.decode(ss.get_sequence_container('Reply_BatteryVoltage'), arg)
+
+        want = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_BatteryVoltage'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 97,
+                'BatteryVoltage': [5, 6, 7, 8],
+            }
+        )
+
+        self.assertEqual(want, got)
+
+    def test_encode_fixed_array(self):
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        msg = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_BatteryVoltage'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 97,
+                'BatteryVoltage': [1, 2, 3, 4],
+            }
+        )
+        got = enc.encode(msg)
+
+        want = bitarray(bytes([2, 11, 32, 97, 1, 2, 3, 4]))
 
         self.assertEqual(want, got)

@@ -7,6 +7,18 @@
 			<xtce:IntegerParameterType signed="false" name="MessageSource"/>
 			<xtce:IntegerParameterType signed="false" name="MessageID"/>
 			<xtce:IntegerParameterType signed="false" name="AnyByte"/>
+			<xtce:ArrayParameterType name="FourByteArray" arrayTypeRef="AnyByte">
+				<xtce:DimensionList>
+					<xtce:Dimension>
+						<xtce:StartingIndex>
+							<xtce:FixedValue>0</xtce:FixedValue>
+						</xtce:StartingIndex>
+						<xtce:EndingIndex>
+							<xtce:FixedValue>3</xtce:FixedValue>
+						</xtce:EndingIndex>
+					</xtce:Dimension>
+				</xtce:DimensionList>
+			</xtce:ArrayParameterType>
 		</xtce:ParameterTypeSet>
 
 		<xtce:ParameterSet>
@@ -15,6 +27,7 @@
 			<xtce:Parameter parameterTypeRef="MessageSource" name="MessageSource" />
 			<xtce:Parameter parameterTypeRef="MessageID" name="MessageID" />
 			<xtce:Parameter parameterTypeRef="AnyByte" name="Nonce" />
+			<xtce:Parameter parameterTypeRef="FourByteArray" name="BatteryVoltage" />
 		</xtce:ParameterSet>
 
 		<xtce:ContainerSet>
@@ -46,6 +59,19 @@
 						<xtce:RestrictionCriteria>
 							<xtce:ComparisonList>
 								<xtce:Comparison parameterRef="MessageID" value="99"/>
+							</xtce:ComparisonList>
+						</xtce:RestrictionCriteria>
+				</xtce:BaseContainer>
+			</xtce:SequenceContainer>
+
+			<xtce:SequenceContainer abstract="false" name="Reply_BatteryVoltage">
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="BatteryVoltage"/>
+				</xtce:EntryList>
+				<xtce:BaseContainer containerRef="ReplyMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:ComparisonList>
+								<xtce:Comparison parameterRef="MessageID" value="97"/>
 							</xtce:ComparisonList>
 						</xtce:RestrictionCriteria>
 				</xtce:BaseContainer>
