@@ -114,11 +114,11 @@ class TestIntegerBaseType(unittest.TestCase):
 
         for i, tt in enumerate(tests):
             with self.subTest(i=i):
-                got_enc = tt.typ.encode(tt.dec)
+                got_enc = tt.typ.data_encoding.encode(tt.dec)
                 self.assertEqual(got_enc, tt.enc, "incorrect encoded value")
 
             with self.subTest(i=i):
-                got_dec = tt.typ.decode(tt.enc)
+                got_dec = tt.typ.data_encoding.decode(tt.enc)
                 self.assertEqual(got_dec, tt.dec, "incorrect decoded value")
 
 
@@ -131,9 +131,9 @@ class TestFloatBaseType(unittest.TestCase):
 
         for i, tt in enumerate(tests):
             with self.subTest(i=i):
-                got_enc = tt.typ.encode(tt.dec)
+                got_enc = tt.typ.data_encoding.encode(tt.dec)
                 self.assertEqual(got_enc, tt.enc, "incorrect encoded value")
 
             with self.subTest(i=i):
-                got_dec = tt.typ.decode(tt.enc)
+                got_dec = tt.typ.data_encoding.decode(tt.enc)
                 self.assertEqual(got_dec, tt.dec, "incorrect decoded value")

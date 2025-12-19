@@ -186,14 +186,31 @@ class SignedEnum(str, enum.Enum):
     packedBCD = 'packedBCD'
 
 
+class Fixed(BaseType):
+    fixedValue: int
+
+
+class ParameterInstanceRef(BaseType):
+    parameterRef: str
+
+
+class DynamicValue(BaseType):
+    parameterInstanceRef: ParameterInstanceRef
+
+
 class SizeInBits(BaseType):
-    fixedValue: int = 32
+    fixed: Fixed = None
+    fixedValue: int = None
+    dynamicValue: DynamicValue = None
+    terminationChar: str = b'0x00'
 
+    def get_fixed_value(self) -> int:
+        if self.fixedValue:
+            return self.fixedValue
+        if self.fixed.fixedValue:
+            return self.fixed.fixedValue
+        raise ValueError('no fixed value specified')
 
-class BinaryEncoding(BaseType):
-    bitOrder: str = BitOrderEnum.MSB
-    byteOrder: str = ByteOrderEnum.MSB
-    sizeInBits: SizeInBits
 
 
 class FloatDataEncoding(BaseType):
@@ -201,14 +218,16 @@ class FloatDataEncoding(BaseType):
     sizeInBits: int = 8
     changeThreshold: float = None
 
-    #NOTE(bcwaldon): not implemented
+    #NOTE(bcwaldon): not implemented yet
 
 
 class IntegerDataEncoding(BaseType):
     encoding: SignedEnum = SignedEnum.unsigned
-    sizeInBits: int = 8
     bitOrder: str = BitOrderEnum.MSB
     byteOrder: str = ByteOrderEnum.MSB
+
+    # NOTE(bcwaldon): XTCE explicitly defines sizeInBits as a number, not a SizeInBits object used elsewhere
+    sizeInBits: int = 8
 
     defaultCalibrator: DefaultCalibrator = None
 
@@ -239,7 +258,15 @@ class IntegerDataEncoding(BaseType):
         elif isinstance(value, float):
             raise ValueError('unable to decode float from integer without calibrator')
 
+        #NOTE(bcwaldon): rounding off decoded value due
+        # to imprecision in handling floats in python
+        if isinstance(dec, float):
+            dec = round(dec, 12)
+
         return dec
+
+    def size(self, parameters) -> int:
+        return self.sizeInBits
 
 
 class ValidRange(BaseType):
@@ -261,21 +288,11 @@ class integerBaseType(BaseType):
     validRange: ValidRange = None
 
     @property
-    def _encoding(self):
+    def data_encoding(self):
         if self.integerDataEncoding:
             return self.integerDataEncoding
 
         return IntegerDataEncoding()
-
-    def encode(self, value: int) -> bytearray:
-        return self._encoding.encode(value)
-
-    @property
-    def encoded_bit_length(self) -> int:
-        return self._encoding.sizeInBits
-
-    def decode(self, value: bytearray) -> int:
-        return self._encoding.decode(value)
 
 
 class IntegerParameterType(integerBaseType):
@@ -298,25 +315,13 @@ class floatBaseType(BaseType):
     floatDataEncoding: FloatDataEncoding = None
 
     @property
-    def _encoding(self):
+    def data_encoding(self):
         if self.integerDataEncoding:
             return self.integerDataEncoding
         elif self.floatDataEncoding:
             return self.floatDataEncoding
 
         return FloatDataEncoding()
-
-    @property
-    def encoded_bit_length(self) -> int:
-        return self._encoding.sizeInBits
-
-    def encode(self, value: float) -> bitarray:
-        return self._encoding.encode(value)
-
-    def decode(self, value: bitarray) -> float:
-        #NOTE(bcwaldon): rounding off decoded value due
-        # to imprecision in handling floats
-        return round(self._encoding.decode(value), 12)
 
 
 class FloatParameterType(floatBaseType):
@@ -326,15 +331,12 @@ class FloatParameterType(floatBaseType):
 class FloatArgumentType(floatBaseType):
     pass
 
-class Fixed(BaseType):
-    fixedValue: int
-
-class SizeInBits(BaseType):
-    fixed: Fixed
-    terminationChar: str = b'0x00'
 
 class StringDataEncoding(BaseType):
-    sizeInBits: SizeInBits
+    pass
+    #NOTE(bcwaldon): much left to be implemented here
+    #sizeInBits: SizeInBits
+
 
 class StringParameterType(BaseType):
     name: str
@@ -346,21 +348,56 @@ class StringParameterType(BaseType):
     stringDataEncoding: StringDataEncoding = None
 
     @property
-    def _encoding(self):
+    def data_encoding(self):
         if self.stringDataEncoding:
             return self.stringDataEncoding
 
         return StringDataEncoding()
 
-    def encode(self, value: int) -> bytearray:
-        return self._encoding.encode(value)
+
+class BinaryDataEncoding(BaseType):
+    sizeInBits: SizeInBits
+    #NOTE(bcwaldon): much left to be implemented here
+    #bitOrder: str = BitOrderEnum.MSB
+    #byteOrder: str = ByteOrderEnum.MSB
+
+    def encode(self, value: bitarray) -> bitarray:
+        return value
+
+    def decode(self, value: bitarray) -> bitarray:
+        return value
+
+    def size(self, parameters) -> int:
+        if self.sizeInBits.fixedValue:
+            return self.sizeInBits.fixedValue
+        if self.sizeInBits.fixed:
+            return self.sizeInBits.fixed.fixedValue
+
+        print(self)
+        try:
+            ref = self.sizeInBits.dynamicValue.parameterInstanceRef.parameterRef
+            ref_value = parameters[ref]
+        except:
+            raise
+            raise Exception('failed to retrieve dynamic value parameter')
+
+        assert isinstance(ref_value, int), 'dynamic value parameter must be integer'
+        assert ref_value > 0,  'dynamic value parameter must be greater than zero'
+
+        return ref_value
+
+
+class BinaryParameterType(BaseType):
+    name: str
+    longDescription: str = None
+
+    binaryDataEncoding: BinaryDataEncoding
 
     @property
-    def encoded_bit_length(self) -> int:
-        return self._encoding.sizeInBits
-
-    def decode(self, value: bytearray) -> int:
-        return self._encoding.decode(value)
+    def data_encoding(self):
+        if not self.binaryDataEncoding:
+            raise ValueError('BinaryDataEncoding not defined')
+        return self.binaryDataEncoding
 
 
 class FixedValue(BaseType):
@@ -393,17 +430,21 @@ class ArrayParameterType(BaseType):
     def item_count(self):
         return 1 + self.dimensionList.dimension[0].endingIndex.fixedValue.value - self.dimensionList.dimension[0].startingIndex.fixedValue.value
 
+    @property
+    def data_encoding(self):
+        return self
+
     def encode(self, value: list) -> bitarray:
         assert len(value) == self.item_count
-        return bitarray(itertools.chain(*[self.itemParameterType.encode(v) for v in value]))
-
-    @property
-    def encoded_bit_length(self) -> int:
-        return self.item_count * self.itemParameterType.encoded_bit_length
+        return bitarray(itertools.chain(*[self.itemParameterType.data_encoding.encode(v) for v in value]))
 
     def decode(self, value: bitarray) -> list:
-        assert len(value) == self.encoded_bit_length
-        return [self.itemParameterType.decode(value[i*self.itemParameterType.encoded_bit_length:(i+1)*self.itemParameterType.encoded_bit_length]) for i in range(self.item_count)]
+        item_size = self.itemParameterType.data_encoding.size({})
+        return [self.itemParameterType.data_encoding.decode(value[i*item_size:(i+1)*item_size]) for i in range(self.item_count)]
+
+    def size(self, parameters) -> int:
+        #NOTE(bcwaldon): unable to handle encoding for array type with dynamic size at this time
+        return self.item_count * self.itemParameterType.data_encoding.size({})
 
 
 class BooleanParameterType(BaseType):
@@ -420,21 +461,11 @@ class BooleanParameterType(BaseType):
     integerDataEncoding: IntegerDataEncoding = None
 
     @property
-    def _encoding(self):
+    def data_encoding(self):
         if self.integerDataEncoding:
             return self.integerDataEncoding
 
         return IntegerDataEncoding()
-
-    def encode(self, value: int) -> bytearray:
-        return self._encoding.encode(value)
-
-    @property
-    def encoded_bit_length(self) -> int:
-        return self._encoding.sizeInBits
-
-    def decode(self, value: bytearray) -> int:
-        return self._encoding.decode(value)
 
 
 class Comparison(BaseType):
@@ -475,21 +506,11 @@ class enumeratedBaseType(BaseType):
     unitSet: UnitSet = None
 
     @property
-    def _encoding(self):
+    def data_encoding(self):
         if self.integerDataEncoding:
             return self.integerDataEncoding
 
         return IntegerDataEncoding()
-
-    def encode(self, value: int) -> bitarray:
-        return self._encoding.encode(value)
-
-    @property
-    def encoded_bit_length(self) -> int:
-        return self._encoding.sizeInBits
-
-    def decode(self, value: bitarray) -> int:
-        return self._encoding.decode(value)
 
 
 class EnumeratedParameterType(enumeratedBaseType):
@@ -522,25 +543,15 @@ class absoluteTimeBaseType(BaseType):
     referenceTime: ReferenceTime
     encoding: Encoding = None
 
-    #TODO(bcwaldon): need to encode this field properly. Currently just
+    #TODO(bcwaldon): need to encode this parameter type properly. Currently just
     # copied similar behavior to IntegerBaseType
 
     @property
-    def _encoding(self):
+    def data_encoding(self):
         return IntegerDataEncoding(
                 encoding=SignedEnum.unsigned,
                 sizeInBits=32,
         )
-
-    def encode(self, value: int) -> bitarray:
-        return self._encoding.encode(value)
-
-    @property
-    def encoded_bit_length(self) -> int:
-        return self._encoding.sizeInBits
-
-    def decode(self, value: bitarray) -> int:
-        return self._encoding.decode(value)
 
 
 class AbsoluteTimeParameterType(absoluteTimeBaseType):
@@ -629,7 +640,7 @@ class CommandContainer(BaseType):
     entryList: EntryList = None
     baseContainer: BaseContainer = None
     ancillaryDataSet: AncillaryDataSet = None
-    binaryEncoding: BinaryEncoding = None
+    binaryEncoding: BinaryDataEncoding = None
 
 
 class BaseMetaCommand(BaseType):
@@ -702,6 +713,7 @@ class ParameterTypeSet(BaseType):
     enumeratedParameterType: list[EnumeratedParameterType] = None
     stringParameterType: list[StringParameterType] = None
     booleanParameterType: list[BooleanParameterType] = None
+    binaryParameterType: list[BinaryParameterType] = None
     arrayParameterType: list[ArrayParameterType] = None
 
 
@@ -760,6 +772,8 @@ class SpaceSystem(BaseType):
                     ts.floatParameterType or [],
                     ts.absoluteTimeParameterType or [],
                     ts.enumeratedParameterType or [],
+                    ts.binaryParameterType or [],
+                    #ts.stringParameterType or [], testing needed
                 ) for ts in parameter_type_sets if ts
             ],
             self.commandMetaData.argumentTypeSet.integerArgumentType or [],

@@ -360,3 +360,50 @@ class TestUnittest(unittest.TestCase):
         want = bitarray(bytes([2, 11, 32, 97, 1, 2, 3, 4]))
 
         self.assertEqual(want, got)
+
+    def test_decode_binary_data(self):
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        arg = bitarray(bytes([2, 11, 32, 95, 24, 11, 32, 97, 42]))
+
+        got = enc.decode(ss.get_sequence_container('Reply_Blob'), arg)
+
+        want = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_Blob'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 95,
+                'BDataLen': 24,
+                'BData': bitarray(bytes([11, 32, 97])),
+                'Nonce': 42,
+            }
+        )
+
+        self.assertEqual(want, got)
+
+    def test_encode_binary_data(self):
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        msg = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_Blob'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 95,
+                'BDataLen': 24,
+                'BData': bitarray(bytes([11, 32, 97])),
+                'Nonce': 42,
+            }
+        )
+
+        got = enc.encode(msg)
+        want = bitarray(bytes([2, 11, 32, 95, 24, 11, 32, 97, 42]))
+
+        self.assertEqual(want, got)

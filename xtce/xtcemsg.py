@@ -119,7 +119,7 @@ class SpaceSystemEncoder:
         def encode_and_append_entry(ent_name, ent_type_name):
             ent_type = self.space_system.get_entry_type(ent_type_name)
             ent_value = msg.entries[ent_name]
-            encoded_entry = ent_type.encode(ent_value)
+            encoded_entry = ent_type.data_encoding.encode(ent_value)
             encoded_entries.append(encoded_entry)
 
         def conditions_met(conds):
@@ -216,9 +216,11 @@ class SpaceSystemEncoder:
 
         def pop_entry(b: bytearray, ent_name: str, ent_type_name: str):
             ent_type = self.space_system.get_entry_type(ent_type_name)
-            encoded_entry = b[:ent_type.encoded_bit_length]
-            del b[:ent_type.encoded_bit_length]
-            msg.entries[ent_name] = ent_type.decode(encoded_entry)
+            encoded_bit_length = ent_type.data_encoding.size(msg.entries)
+
+            encoded_entry = b[:encoded_bit_length]
+            del b[:encoded_bit_length]
+            msg.entries[ent_name] = ent_type.data_encoding.decode(encoded_entry)
 
         def conditions_met(conds):
             for cond in conds:

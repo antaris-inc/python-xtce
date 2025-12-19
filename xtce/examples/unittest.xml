@@ -19,6 +19,15 @@
 					</xtce:Dimension>
 				</xtce:DimensionList>
 			</xtce:ArrayParameterType>
+			<xtce:BinaryParameterType name="BinaryData">
+				<xtce:BinaryDataEncoding>
+					<xtce:SizeInBits>
+						<xtce:DynamicValue>
+							<xtce:ParameterInstanceRef parameterRef="BDataLen"/>
+						</xtce:DynamicValue>
+					</xtce:SizeInBits>
+				</xtce:BinaryDataEncoding>
+			</xtce:BinaryParameterType>
 		</xtce:ParameterTypeSet>
 
 		<xtce:ParameterSet>
@@ -28,6 +37,8 @@
 			<xtce:Parameter parameterTypeRef="MessageID" name="MessageID" />
 			<xtce:Parameter parameterTypeRef="AnyByte" name="Nonce" />
 			<xtce:Parameter parameterTypeRef="FourByteArray" name="BatteryVoltage" />
+			<xtce:Parameter parameterTypeRef="BinaryData" name="BData" />
+			<xtce:Parameter parameterTypeRef="AnyByte" name="BDataLen" />
 		</xtce:ParameterSet>
 
 		<xtce:ContainerSet>
@@ -76,6 +87,22 @@
 						</xtce:RestrictionCriteria>
 				</xtce:BaseContainer>
 			</xtce:SequenceContainer>
+
+			<xtce:SequenceContainer abstract="false" name="Reply_Blob">
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="BDataLen"/>
+					<xtce:ParameterRefEntry parameterRef="BData"/>
+					<xtce:ParameterRefEntry parameterRef="Nonce"/>
+				</xtce:EntryList>
+				<xtce:BaseContainer containerRef="ReplyMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:ComparisonList>
+								<xtce:Comparison parameterRef="MessageID" value="95"/>
+							</xtce:ComparisonList>
+						</xtce:RestrictionCriteria>
+				</xtce:BaseContainer>
+			</xtce:SequenceContainer>
+
 
 		</xtce:ContainerSet>
 
