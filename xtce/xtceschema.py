@@ -404,7 +404,18 @@ class FixedValue(BaseType):
     value: int
 
 class DimensionIndex(BaseType):
-    fixedValue: FixedValue
+    fixedValue: FixedValue = None
+    dynamicValue: DynamicValue = None
+
+    def get_value(self, parameters: dict) -> int:
+        if self.fixedValue is not None:
+            return self.fixedValue.value
+        if self.dynamicValue is not None:
+            ref = self.dynamicValue.parameterInstanceRef.parameterRef
+            if ref not in parameters:
+                raise ValueError(f"Dynamic array size parameter '{ref}' not found in parameters")
+            return parameters[ref]
+        raise ValueError("DimensionIndex has no fixed or dynamic value")
 
 class Dimension(BaseType):
     startingIndex: DimensionIndex
@@ -426,25 +437,28 @@ class ArrayParameterType(BaseType):
     # initialized when used by encoder
     itemParameterType: typing.Any = None
 
-    @property
-    def item_count(self):
-        return 1 + self.dimensionList.dimension[0].endingIndex.fixedValue.value - self.dimensionList.dimension[0].startingIndex.fixedValue.value
+    def item_count(self, parameters: dict) -> int:
+        dim = self.dimensionList.dimension[0]
+        start = dim.startingIndex.get_value(parameters)
+        end = dim.endingIndex.get_value(parameters)
+        return 1 + end - start
 
     @property
     def data_encoding(self):
         return self
 
     def encode(self, value: list) -> bitarray:
-        assert len(value) == self.item_count
         return bitarray(itertools.chain(*[self.itemParameterType.data_encoding.encode(v) for v in value]))
 
-    def decode(self, value: bitarray) -> list:
-        item_size = self.itemParameterType.data_encoding.size({})
-        return [self.itemParameterType.data_encoding.decode(value[i*item_size:(i+1)*item_size]) for i in range(self.item_count)]
+    def decode(self, value: bitarray, parameters: dict = None) -> list:
+        parameters = parameters or {}
+        count = self.item_count(parameters)
+        item_size = self.itemParameterType.data_encoding.size(parameters)
+        return [self.itemParameterType.data_encoding.decode(value[i*item_size:(i+1)*item_size]) for i in range(count)]
 
-    def size(self, parameters) -> int:
-        #NOTE(bcwaldon): unable to handle encoding for array type with dynamic size at this time
-        return self.item_count * self.itemParameterType.data_encoding.size({})
+    def size(self, parameters: dict) -> int:
+        count = self.item_count(parameters)
+        return count * self.itemParameterType.data_encoding.size(parameters)
 
 
 class BooleanParameterType(BaseType):

@@ -407,3 +407,164 @@ class TestUnittest(unittest.TestCase):
         want = bitarray(bytes([2, 11, 32, 95, 24, 11, 32, 97, 42]))
 
         self.assertEqual(want, got)
+
+    def test_decode_dynamic_array(self):
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        # Message: MessageType=2, Dest=11, Src=32, ID=94, ArrayCount=2 (means 3 elements: 0,1,2), Data=[10,20,30]
+        arg = bitarray(bytes([2, 11, 32, 94, 2, 10, 20, 30]))
+
+        got = enc.decode(ss.get_sequence_container('Reply_DynamicArray'), arg)
+
+        want = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_DynamicArray'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 94,
+                'ArrayCount': 2,
+                'DynamicData': [10, 20, 30],
+            }
+        )
+
+        self.assertEqual(want, got)
+
+    def test_encode_dynamic_array(self):
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        msg = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_DynamicArray'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 94,
+                'ArrayCount': 4,
+                'DynamicData': [1, 2, 3, 4, 5],
+            }
+        )
+
+        got = enc.encode(msg)
+        want = bitarray(bytes([2, 11, 32, 94, 4, 1, 2, 3, 4, 5]))
+
+        self.assertEqual(want, got)
+
+    def test_decode_fixed_float_array(self):
+        """Test decoding a fixed-size array of floats using IntegerDataEncoding with polynomial calibration.
+
+        The ScaledTemperature type uses 16-bit integers with calibration: calibrated = 0.1 * raw
+        FixedFloatArray has 3 elements (indices 0-2).
+        """
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        # Message: MessageType=2, Dest=11, Src=32, ID=92
+        # Raw values: 100 (0x0064), 200 (0x00C8), 300 (0x012C) as 16-bit big-endian integers
+        arg = bitarray(bytes([2, 11, 32, 92, 0x00, 0x64, 0x00, 0xC8, 0x01, 0x2C]))
+
+        got = enc.decode(ss.get_sequence_container('Reply_FixedFloatArray'), arg)
+
+        want = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_FixedFloatArray'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 92,
+                'FixedTemperatures': [10.0, 20.0, 30.0],
+            }
+        )
+
+        self.assertEqual(want, got)
+
+    def test_encode_fixed_float_array(self):
+        """Test encoding a fixed-size array of floats using IntegerDataEncoding with polynomial calibration.
+
+        The ScaledTemperature type uses 16-bit integers with calibration: calibrated = 0.1 * raw
+        So calibrated values [10.0, 20.0, 30.0] are encoded as raw values [100, 200, 300]
+        """
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        msg = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_FixedFloatArray'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 92,
+                'FixedTemperatures': [10.0, 20.0, 30.0],
+            }
+        )
+
+        got = enc.encode(msg)
+        # Raw values: 100 (0x0064), 200 (0x00C8), 300 (0x012C) as 16-bit big-endian integers
+        want = bitarray(bytes([2, 11, 32, 92, 0x00, 0x64, 0x00, 0xC8, 0x01, 0x2C]))
+
+        self.assertEqual(want, got)
+
+    def test_decode_dynamic_float_array(self):
+        """Test decoding a dynamic array of floats using IntegerDataEncoding with polynomial calibration.
+
+        The ScaledTemperature type uses 16-bit integers with calibration: calibrated = 0.1 * raw
+        So raw values [100, 200, 300] become calibrated values [10.0, 20.0, 30.0]
+        """
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        # Message: MessageType=2, Dest=11, Src=32, ID=93, FloatArrayCount=3 (3 elements)
+        # Raw values: 100 (0x0064), 200 (0x00C8), 300 (0x012C) as 16-bit big-endian integers
+        arg = bitarray(bytes([2, 11, 32, 93, 3, 0x00, 0x64, 0x00, 0xC8, 0x01, 0x2C]))
+
+        got = enc.decode(ss.get_sequence_container('Reply_DynamicFloatArray'), arg)
+
+        want = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_DynamicFloatArray'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 93,
+                'FloatArrayCount': 3,
+                'FloatTemperatures': [10.0, 20.0, 30.0],
+            }
+        )
+
+        self.assertEqual(want, got)
+
+    def test_encode_dynamic_float_array(self):
+        """Test encoding a dynamic array of floats using IntegerDataEncoding with polynomial calibration.
+
+        The ScaledTemperature type uses 16-bit integers with calibration: calibrated = 0.1 * raw
+        So calibrated values [10.0, 20.0] are encoded as raw values [100, 200]
+        """
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        msg = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_DynamicFloatArray'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 93,
+                'FloatArrayCount': 2,
+                'FloatTemperatures': [10.0, 20.0],
+            }
+        )
+
+        got = enc.encode(msg)
+        # FloatArrayCount=2 means 2 elements
+        # Raw values: 100 (0x0064), 200 (0x00C8) as 16-bit big-endian integers
+        want = bitarray(bytes([2, 11, 32, 93, 2, 0x00, 0x64, 0x00, 0xC8]))
+
+        self.assertEqual(want, got)

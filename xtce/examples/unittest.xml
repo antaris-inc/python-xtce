@@ -19,6 +19,20 @@
 					</xtce:Dimension>
 				</xtce:DimensionList>
 			</xtce:ArrayParameterType>
+			<xtce:ArrayParameterType name="DynamicByteArray" arrayTypeRef="AnyByte">
+				<xtce:DimensionList>
+					<xtce:Dimension>
+						<xtce:StartingIndex>
+							<xtce:FixedValue>0</xtce:FixedValue>
+						</xtce:StartingIndex>
+						<xtce:EndingIndex>
+							<xtce:DynamicValue>
+								<xtce:ParameterInstanceRef parameterRef="ArrayCount"/>
+							</xtce:DynamicValue>
+						</xtce:EndingIndex>
+					</xtce:Dimension>
+				</xtce:DimensionList>
+			</xtce:ArrayParameterType>
 			<xtce:BinaryParameterType name="BinaryData">
 				<xtce:BinaryDataEncoding>
 					<xtce:SizeInBits>
@@ -28,6 +42,42 @@
 					</xtce:SizeInBits>
 				</xtce:BinaryDataEncoding>
 			</xtce:BinaryParameterType>
+			<xtce:FloatParameterType sizeInBits="64" name="ScaledTemperature">
+				<xtce:IntegerDataEncoding sizeInBits="16" encoding="twosComplement">
+					<xtce:DefaultCalibrator>
+						<xtce:PolynomialCalibrator>
+							<xtce:Term coefficient="0.0" exponent="0"/>
+							<xtce:Term coefficient="0.1" exponent="1"/>
+						</xtce:PolynomialCalibrator>
+					</xtce:DefaultCalibrator>
+				</xtce:IntegerDataEncoding>
+			</xtce:FloatParameterType>
+			<xtce:ArrayParameterType name="FixedFloatArray" arrayTypeRef="ScaledTemperature">
+				<xtce:DimensionList>
+					<xtce:Dimension>
+						<xtce:StartingIndex>
+							<xtce:FixedValue>0</xtce:FixedValue>
+						</xtce:StartingIndex>
+						<xtce:EndingIndex>
+							<xtce:FixedValue>2</xtce:FixedValue>
+						</xtce:EndingIndex>
+					</xtce:Dimension>
+				</xtce:DimensionList>
+			</xtce:ArrayParameterType>
+			<xtce:ArrayParameterType name="DynamicFloatArray" arrayTypeRef="ScaledTemperature">
+				<xtce:DimensionList>
+					<xtce:Dimension>
+						<xtce:StartingIndex>
+							<xtce:FixedValue>1</xtce:FixedValue>
+						</xtce:StartingIndex>
+						<xtce:EndingIndex>
+							<xtce:DynamicValue>
+								<xtce:ParameterInstanceRef parameterRef="FloatArrayCount"/>
+							</xtce:DynamicValue>
+						</xtce:EndingIndex>
+					</xtce:Dimension>
+				</xtce:DimensionList>
+			</xtce:ArrayParameterType>
 		</xtce:ParameterTypeSet>
 
 		<xtce:ParameterSet>
@@ -39,6 +89,11 @@
 			<xtce:Parameter parameterTypeRef="FourByteArray" name="BatteryVoltage" />
 			<xtce:Parameter parameterTypeRef="BinaryData" name="BData" />
 			<xtce:Parameter parameterTypeRef="AnyByte" name="BDataLen" />
+			<xtce:Parameter parameterTypeRef="AnyByte" name="ArrayCount" />
+			<xtce:Parameter parameterTypeRef="DynamicByteArray" name="DynamicData" />
+			<xtce:Parameter parameterTypeRef="AnyByte" name="FloatArrayCount" />
+			<xtce:Parameter parameterTypeRef="DynamicFloatArray" name="FloatTemperatures" />
+			<xtce:Parameter parameterTypeRef="FixedFloatArray" name="FixedTemperatures" />
 		</xtce:ParameterSet>
 
 		<xtce:ContainerSet>
@@ -103,6 +158,46 @@
 				</xtce:BaseContainer>
 			</xtce:SequenceContainer>
 
+			<xtce:SequenceContainer abstract="false" name="Reply_DynamicArray">
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="ArrayCount"/>
+					<xtce:ParameterRefEntry parameterRef="DynamicData"/>
+				</xtce:EntryList>
+				<xtce:BaseContainer containerRef="ReplyMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:ComparisonList>
+								<xtce:Comparison parameterRef="MessageID" value="94"/>
+							</xtce:ComparisonList>
+						</xtce:RestrictionCriteria>
+				</xtce:BaseContainer>
+			</xtce:SequenceContainer>
+
+			<xtce:SequenceContainer abstract="false" name="Reply_DynamicFloatArray">
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="FloatArrayCount"/>
+					<xtce:ParameterRefEntry parameterRef="FloatTemperatures"/>
+				</xtce:EntryList>
+				<xtce:BaseContainer containerRef="ReplyMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:ComparisonList>
+								<xtce:Comparison parameterRef="MessageID" value="93"/>
+							</xtce:ComparisonList>
+						</xtce:RestrictionCriteria>
+				</xtce:BaseContainer>
+			</xtce:SequenceContainer>
+
+			<xtce:SequenceContainer abstract="false" name="Reply_FixedFloatArray">
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="FixedTemperatures"/>
+				</xtce:EntryList>
+				<xtce:BaseContainer containerRef="ReplyMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:ComparisonList>
+								<xtce:Comparison parameterRef="MessageID" value="92"/>
+							</xtce:ComparisonList>
+						</xtce:RestrictionCriteria>
+				</xtce:BaseContainer>
+			</xtce:SequenceContainer>
 
 		</xtce:ContainerSet>
 
