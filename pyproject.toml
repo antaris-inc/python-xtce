@@ -10,3 +10,13 @@ dependencies = [
 
 [tool.setuptools.package-data]
 "xtce" = ["*.xsd", "examples/*"]
+
+[tool.coverage.run]
+source = ["xtce"]
+omit = ["xtce/test_*", "xtce/examples/test_*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+]
