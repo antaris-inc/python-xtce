@@ -23,7 +23,7 @@
 				<xtce:DimensionList>
 					<xtce:Dimension>
 						<xtce:StartingIndex>
-							<xtce:FixedValue>0</xtce:FixedValue>
+							<xtce:FixedValue>1</xtce:FixedValue>
 						</xtce:StartingIndex>
 						<xtce:EndingIndex>
 							<xtce:DynamicValue>

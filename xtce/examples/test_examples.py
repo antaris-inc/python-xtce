@@ -413,8 +413,8 @@ class TestUnittest(unittest.TestCase):
 
         enc = xtcemsg.SpaceSystemEncoder(ss)
 
-        # Message: MessageType=2, Dest=11, Src=32, ID=94, ArrayCount=2 (means 3 elements: 0,1,2), Data=[10,20,30]
-        arg = bitarray(bytes([2, 11, 32, 94, 2, 10, 20, 30]))
+        # Message: MessageType=2, Dest=11, Src=32, ID=94, ArrayCount=3 (3 elements), Data=[10,20,30]
+        arg = bitarray(bytes([2, 11, 32, 94, 3, 10, 20, 30]))
 
         got = enc.decode(ss.get_sequence_container('Reply_DynamicArray'), arg)
 
@@ -425,7 +425,7 @@ class TestUnittest(unittest.TestCase):
                 'MessageSource': 32,
                 'MessageDestination': 11,
                 'MessageID': 94,
-                'ArrayCount': 2,
+                'ArrayCount': 3,
                 'DynamicData': [10, 20, 30],
             }
         )
@@ -444,13 +444,13 @@ class TestUnittest(unittest.TestCase):
                 'MessageSource': 32,
                 'MessageDestination': 11,
                 'MessageID': 94,
-                'ArrayCount': 4,
+                'ArrayCount': 5,
                 'DynamicData': [1, 2, 3, 4, 5],
             }
         )
 
         got = enc.encode(msg)
-        want = bitarray(bytes([2, 11, 32, 94, 4, 1, 2, 3, 4, 5]))
+        want = bitarray(bytes([2, 11, 32, 94, 5, 1, 2, 3, 4, 5]))
 
         self.assertEqual(want, got)
 
