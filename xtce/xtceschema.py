@@ -269,6 +269,47 @@ class IntegerDataEncoding(BaseType):
         return self.sizeInBits
 
 
+class BooleanDataEncoding:
+    """Wrapper around IntegerDataEncoding that handles boolean value conversion."""
+
+    def __init__(self, integer_encoding: IntegerDataEncoding, zero_string: str, one_string: str):
+        self._integer_encoding = integer_encoding
+        self._zero_string = zero_string
+        self._one_string = one_string
+
+    def _to_int(self, value: [bool | str | int]) -> int:
+        if isinstance(value, bool):
+            return 1 if value else 0
+        if isinstance(value, int):
+            return 1 if value else 0
+        if isinstance(value, str):
+            if value == self._one_string:
+                return 1
+            elif value == self._zero_string:
+                return 0
+            elif value.lower() in ('true', '1'):
+                return 1
+            elif value.lower() in ('false', '0'):
+                return 0
+            else:
+                raise ValueError(f"invalid boolean string value: {value}")
+        raise ValueError(f"unsupported boolean value type: {type(value)}")
+
+    def _from_int(self, value: int) -> bool:
+        return value != 0
+
+    def encode(self, value: [bool | str | int]) -> bitarray:
+        int_value = self._to_int(value)
+        return self._integer_encoding.encode(int_value)
+
+    def decode(self, value: bitarray) -> bool:
+        int_value = self._integer_encoding.decode(value)
+        return self._from_int(int_value)
+
+    def size(self, parameters) -> int:
+        return self._integer_encoding.size(parameters)
+
+
 class ValidRange(BaseType):
     minInclusive: float
     maxInclusive: float
@@ -469,17 +510,15 @@ class BooleanParameterType(BaseType):
     unitSet: UnitSet = None
 
     initialValue: str = None
-    zeroStringValue: str
-    oneStringValue: str
+    zeroStringValue: str = 'False'
+    oneStringValue: str = 'True'
 
     integerDataEncoding: IntegerDataEncoding = None
 
     @property
     def data_encoding(self):
-        if self.integerDataEncoding:
-            return self.integerDataEncoding
-
-        return IntegerDataEncoding()
+        int_encoding = self.integerDataEncoding or IntegerDataEncoding(sizeInBits=1)
+        return BooleanDataEncoding(int_encoding, self.zeroStringValue, self.oneStringValue)
 
 
 class Comparison(BaseType):
@@ -787,6 +826,7 @@ class SpaceSystem(BaseType):
                     ts.absoluteTimeParameterType or [],
                     ts.enumeratedParameterType or [],
                     ts.binaryParameterType or [],
+                    ts.booleanParameterType or [],
                     #ts.stringParameterType or [], testing needed
                 ) for ts in parameter_type_sets if ts
             ],
