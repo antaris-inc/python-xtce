@@ -414,12 +414,10 @@ class BinaryDataEncoding(BaseType):
         if self.sizeInBits.fixed:
             return self.sizeInBits.fixed.fixedValue
 
-        print(self)
         try:
             ref = self.sizeInBits.dynamicValue.parameterInstanceRef.parameterRef
             ref_value = parameters[ref]
         except:
-            raise
             raise Exception('failed to retrieve dynamic value parameter')
 
         assert isinstance(ref_value, int), 'dynamic value parameter must be integer'
