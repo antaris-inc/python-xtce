@@ -568,3 +568,51 @@ class TestUnittest(unittest.TestCase):
         want = bitarray(bytes([2, 11, 32, 93, 2, 0x00, 0x64, 0x00, 0xC8]))
 
         self.assertEqual(want, got)
+
+    def test_decode_dynamic_array_zero_size(self):
+        """Test decoding a dynamic array when the array size is zero."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        # Message: MessageType=2, Dest=11, Src=32, ID=94, ArrayCount=0 (0 elements)
+        arg = bitarray(bytes([2, 11, 32, 94, 0]))
+
+        got = enc.decode(ss.get_sequence_container('Reply_DynamicArray'), arg)
+
+        want = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_DynamicArray'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 94,
+                'ArrayCount': 0,
+                'DynamicData': [],
+            }
+        )
+
+        self.assertEqual(want, got)
+
+    def test_encode_dynamic_array_zero_size(self):
+        """Test encoding a dynamic array when the array size is zero."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        msg = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_DynamicArray'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 94,
+                'ArrayCount': 0,
+                'DynamicData': [],
+            }
+        )
+
+        got = enc.encode(msg)
+        want = bitarray(bytes([2, 11, 32, 94, 0]))
+
+        self.assertEqual(want, got)
