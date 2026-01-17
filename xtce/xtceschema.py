@@ -242,7 +242,10 @@ class IntegerDataEncoding(BaseType):
             raise ValueError('unable to encode float as integer without calibrator')
 
         size_in_bytes = int(math.ceil(self.sizeInBits/8))
-        encoded_bytes = bytearray(value.to_bytes(size_in_bytes, signed=self._signed, byteorder='big'))
+        try:
+            encoded_bytes = bytearray(value.to_bytes(size_in_bytes, signed=self._signed, byteorder='big'))
+        except Exception as exc:
+            raise Exception(f'failed encoding value {value} into {size_in_bytes}B: {exc}')
         encoded_bits = bitarray(encoded_bytes)
         field_bits = encoded_bits[-self.sizeInBits:]
         return field_bits
