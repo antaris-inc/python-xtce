@@ -151,20 +151,13 @@ class TestBooleanParameterType(unittest.TestCase):
         enc_false = typ.data_encoding.encode(False)
         self.assertEqual(enc_false, bitarray([0]))
 
-        # Test decode
+        # Test decode - verify both value and type
         dec_true = typ.data_encoding.decode(bitarray([1]))
+        self.assertIsInstance(dec_true, bool)
         self.assertTrue(dec_true)
         dec_false = typ.data_encoding.decode(bitarray([0]))
+        self.assertIsInstance(dec_false, bool)
         self.assertFalse(dec_false)
-
-    def test_encode_with_string_values(self):
-        """Test encoding with string values (True/False)."""
-        typ = xtceschema.BooleanParameterType(name='test_bool')
-
-        enc_true = typ.data_encoding.encode('True')
-        self.assertEqual(enc_true, bitarray([1]))
-        enc_false = typ.data_encoding.encode('False')
-        self.assertEqual(enc_false, bitarray([0]))
 
     def test_encode_with_int_values(self):
         """Test encoding with integer values (0/1)."""
@@ -175,37 +168,52 @@ class TestBooleanParameterType(unittest.TestCase):
         enc_zero = typ.data_encoding.encode(0)
         self.assertEqual(enc_zero, bitarray([0]))
 
-    def test_custom_string_values(self):
-        """Test BooleanParameterType with custom string values (ON/OFF)."""
-        typ = xtceschema.BooleanParameterType(
-            name='test_bool',
-            zeroStringValue='OFF',
-            oneStringValue='ON',
-        )
+    def test_rejects_string_values(self):
+        """Test that string values are rejected."""
+        typ = xtceschema.BooleanParameterType(name='test_bool')
 
-        # Encode using custom string values
-        enc_on = typ.data_encoding.encode('ON')
-        self.assertEqual(enc_on, bitarray([1]))
-        enc_off = typ.data_encoding.encode('OFF')
-        self.assertEqual(enc_off, bitarray([0]))
+        with self.assertRaises(ValueError):
+            typ.data_encoding.encode('True')
+        with self.assertRaises(ValueError):
+            typ.data_encoding.encode('ON')
 
-        # Bool values still work
+    def test_default_1bit_encoding(self):
+        """Test BooleanParameterType with default 1-bit encoding."""
+        typ = xtceschema.BooleanParameterType(name='test_bool')
+
+        # Verify default size is 1 bit
+        self.assertEqual(typ.data_encoding.size({}), 1)
+
+        # Encode True -> 1 bit set
         enc_true = typ.data_encoding.encode(True)
         self.assertEqual(enc_true, bitarray([1]))
+        self.assertEqual(len(enc_true), 1)
+
+        # Encode False -> 1 bit clear
+        enc_false = typ.data_encoding.encode(False)
+        self.assertEqual(enc_false, bitarray([0]))
+        self.assertEqual(len(enc_false), 1)
+
+        # Decode and verify type is bool
+        dec_true = typ.data_encoding.decode(bitarray([1]))
+        self.assertIsInstance(dec_true, bool)
+        self.assertTrue(dec_true)
+
+        dec_false = typ.data_encoding.decode(bitarray([0]))
+        self.assertIsInstance(dec_false, bool)
+        self.assertFalse(dec_false)
 
     def test_custom_encoding_size(self):
         """Test BooleanParameterType with custom encoding size (8-bit)."""
         typ = xtceschema.BooleanParameterType(
             name='test_bool',
-            zeroStringValue='DISCHARGE',
-            oneStringValue='CHARGE',
             integerDataEncoding=xtceschema.IntegerDataEncoding(sizeInBits=8),
         )
 
-        enc_charge = typ.data_encoding.encode('CHARGE')
-        self.assertEqual(enc_charge, bitarray([0, 0, 0, 0, 0, 0, 0, 1]))
-        enc_discharge = typ.data_encoding.encode('DISCHARGE')
-        self.assertEqual(enc_discharge, bitarray([0, 0, 0, 0, 0, 0, 0, 0]))
+        enc_true = typ.data_encoding.encode(True)
+        self.assertEqual(enc_true, bitarray([0, 0, 0, 0, 0, 0, 0, 1]))
+        enc_false = typ.data_encoding.encode(False)
+        self.assertEqual(enc_false, bitarray([0, 0, 0, 0, 0, 0, 0, 0]))
 
         # Verify size method
         self.assertEqual(typ.data_encoding.size({}), 8)

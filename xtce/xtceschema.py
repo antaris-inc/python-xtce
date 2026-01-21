@@ -275,33 +275,20 @@ class IntegerDataEncoding(BaseType):
 class BooleanDataEncoding:
     """Wrapper around IntegerDataEncoding that handles boolean value conversion."""
 
-    def __init__(self, integer_encoding: IntegerDataEncoding, zero_string: str, one_string: str):
+    def __init__(self, integer_encoding: IntegerDataEncoding):
         self._integer_encoding = integer_encoding
-        self._zero_string = zero_string
-        self._one_string = one_string
 
-    def _to_int(self, value: [bool | str | int]) -> int:
+    def _to_int(self, value: [bool | int]) -> int:
         if isinstance(value, bool):
             return 1 if value else 0
         if isinstance(value, int):
             return 1 if value else 0
-        if isinstance(value, str):
-            if value == self._one_string:
-                return 1
-            elif value == self._zero_string:
-                return 0
-            elif value.lower() in ('true', '1'):
-                return 1
-            elif value.lower() in ('false', '0'):
-                return 0
-            else:
-                raise ValueError(f"invalid boolean string value: {value}")
         raise ValueError(f"unsupported boolean value type: {type(value)}")
 
     def _from_int(self, value: int) -> bool:
         return value != 0
 
-    def encode(self, value: [bool | str | int]) -> bitarray:
+    def encode(self, value: [bool | int]) -> bitarray:
         int_value = self._to_int(value)
         return self._integer_encoding.encode(int_value)
 
@@ -624,7 +611,26 @@ class BooleanParameterType(BaseType):
     @property
     def data_encoding(self):
         int_encoding = self.integerDataEncoding or IntegerDataEncoding(sizeInBits=1)
-        return BooleanDataEncoding(int_encoding, self.zeroStringValue, self.oneStringValue)
+        return BooleanDataEncoding(int_encoding)
+
+
+class BooleanArgumentType(BaseType):
+    name: str
+    shortDescription: str = None
+    longDescription: str = None
+
+    unitSet: UnitSet = None
+
+    initialValue: str = None
+    zeroStringValue: str = 'False'
+    oneStringValue: str = 'True'
+
+    integerDataEncoding: IntegerDataEncoding = None
+
+    @property
+    def data_encoding(self):
+        int_encoding = self.integerDataEncoding or IntegerDataEncoding(sizeInBits=1)
+        return BooleanDataEncoding(int_encoding)
 
 
 class Comparison(BaseType):
@@ -895,6 +901,7 @@ class ArgumentTypeSet(BaseType):
     floatArgumentType: list[FloatArgumentType] = None
     absoluteTimeArgumentType: list[AbsoluteTimeArgumentType] = None
     enumeratedArgumentType: list[EnumeratedArgumentType] = None
+    booleanArgumentType: list[BooleanArgumentType] = None
 
 
 class MetaCommandSet(BaseType):
@@ -938,6 +945,7 @@ class SpaceSystem(BaseType):
             ],
             self.commandMetaData.argumentTypeSet.integerArgumentType or [],
             self.commandMetaData.argumentTypeSet.enumeratedArgumentType or [],
+            self.commandMetaData.argumentTypeSet.booleanArgumentType or [],
         ))
         return dict([(o.name, o) for o in objs])
 

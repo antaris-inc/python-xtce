@@ -691,3 +691,137 @@ class TestUnittest(unittest.TestCase):
         decoded = enc.decode(msg.message_type, encoded)
 
         self.assertEqual(msg.entries, decoded.entries)
+
+    def test_encode_boolean_argument_true(self):
+        """Test encoding a command with a boolean argument set to True."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SetFlag'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'Enable': True,
+            }
+        )
+
+        got = enc.encode(cmd)
+        # MessageType=1, Dest=11, Src=32, ID=97, Intermediate=50, Enable=1
+        want = bitarray(bytes([1, 11, 32, 97, 50, 1]))
+
+        self.assertEqual(want, got)
+
+    def test_encode_boolean_argument_false(self):
+        """Test encoding a command with a boolean argument set to False."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SetFlag'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'Enable': False,
+            }
+        )
+
+        got = enc.encode(cmd)
+        # MessageType=1, Dest=11, Src=32, ID=97, Intermediate=50, Enable=0
+        want = bitarray(bytes([1, 11, 32, 97, 50, 0]))
+
+        self.assertEqual(want, got)
+
+    def test_encode_boolean_argument_with_int_value(self):
+        """Test encoding a command with a boolean argument using int (0/1)."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SetFlag'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'Enable': 1,  # Using int value
+            }
+        )
+
+        got = enc.encode(cmd)
+        # MessageType=1, Dest=11, Src=32, ID=97, Intermediate=50, Enable=1
+        want = bitarray(bytes([1, 11, 32, 97, 50, 1]))
+
+        self.assertEqual(want, got)
+
+    def test_decode_boolean_argument(self):
+        """Test decoding a command with a boolean argument."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        # MessageType=1, Dest=11, Src=32, ID=97, Intermediate=50, Enable=1
+        arg = bitarray(bytes([1, 11, 32, 97, 50, 1]))
+
+        got = enc.decode(ss.get_meta_command('Command_SetFlag'), arg)
+
+        # Verify the boolean argument is decoded as bool type, not int
+        self.assertIsInstance(got.entries['Enable'], bool)
+        self.assertTrue(got.entries['Enable'])
+
+        want = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SetFlag'),
+            entries={
+                'MessageType': 1,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 97,
+                'Intermediate': 50,
+                'Enable': True,
+            }
+        )
+
+        self.assertEqual(want, got)
+
+    def test_decode_boolean_argument_false(self):
+        """Test decoding a command with a boolean argument set to false."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        # MessageType=1, Dest=11, Src=32, ID=97, Intermediate=50, Enable=0
+        arg = bitarray(bytes([1, 11, 32, 97, 50, 0]))
+
+        got = enc.decode(ss.get_meta_command('Command_SetFlag'), arg)
+
+        # Verify the boolean argument is decoded as bool type, not int
+        self.assertIsInstance(got.entries['Enable'], bool)
+        self.assertFalse(got.entries['Enable'])
+
+    def test_boolean_argument_roundtrip(self):
+        """Test encode/decode roundtrip for boolean arguments."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SetFlag'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'Enable': True,
+            }
+        )
+
+        encoded = enc.encode(cmd)
+        decoded = enc.decode(cmd.message_type, encoded)
+
+        # Verify the boolean argument is decoded as bool type
+        self.assertIsInstance(decoded.entries['Enable'], bool)
+        self.assertTrue(decoded.entries['Enable'])
+        self.assertEqual(decoded.entries['Intermediate'], 50)

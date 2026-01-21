@@ -228,6 +228,9 @@
 	<xtce:CommandMetaData>
 		<xtce:ArgumentTypeSet>
 			<xtce:IntegerArgumentType name="AnyByte"/>
+			<xtce:BooleanArgumentType name="EnableFlag" zeroStringValue="OFF" oneStringValue="ON">
+				<xtce:IntegerDataEncoding sizeInBits="8" encoding="unsigned"/>
+			</xtce:BooleanArgumentType>
 		</xtce:ArgumentTypeSet>
 
 		<xtce:MetaCommandSet>
@@ -273,6 +276,23 @@
 					<xtce:BaseContainer containerRef="CommandMessageBase">
 						<xtce:RestrictionCriteria>
 							<xtce:Comparison  parameterRef="MessageID" value="98"/>
+						</xtce:RestrictionCriteria>
+					</xtce:BaseContainer>
+				</xtce:CommandContainer>
+			</xtce:MetaCommand>
+
+			<xtce:MetaCommand abstract="false" name="Command_SetFlag">
+				<xtce:BaseMetaCommand metaCommandRef="CommandMessageBase"/>
+				<xtce:ArgumentList>
+					<xtce:Argument argumentTypeRef="EnableFlag" name="Enable"/>
+				</xtce:ArgumentList>
+				<xtce:CommandContainer name="Command_SetFlag">
+					<xtce:EntryList>
+						<xtce:ArgumentRefEntry argumentRef="Enable"/>
+					</xtce:EntryList>
+					<xtce:BaseContainer containerRef="CommandMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:Comparison  parameterRef="MessageID" value="97"/>
 						</xtce:RestrictionCriteria>
 					</xtce:BaseContainer>
 				</xtce:CommandContainer>
