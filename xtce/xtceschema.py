@@ -202,7 +202,7 @@ class SizeInBits(BaseType):
     fixed: Fixed = None
     fixedValue: int = None
     dynamicValue: DynamicValue = None
-    terminationChar: str = b'0x00'
+    terminationChar: str = None  # hexBinary string like "00" or "0D0A"
 
     def get_fixed_value(self) -> int:
         if self.fixedValue:
@@ -376,10 +376,115 @@ class FloatArgumentType(floatBaseType):
     pass
 
 
+class StringEncodingEnum(str, enum.Enum):
+    UTF8 = 'UTF-8'
+    UTF16 = 'UTF-16'
+    UTF16LE = 'UTF-16LE'
+    UTF16BE = 'UTF-16BE'
+    US_ASCII = 'US-ASCII'
+    ISO_8859_1 = 'ISO-8859-1'
+    WINDOWS_1252 = 'Windows-1252'
+
+
 class StringDataEncoding(BaseType):
-    pass
-    #NOTE(bcwaldon): much left to be implemented here
-    #sizeInBits: SizeInBits
+    encoding: StringEncodingEnum = StringEncodingEnum.UTF8
+    bitOrder: str = BitOrderEnum.MSB
+    sizeInBits: SizeInBits = None
+
+    def _get_python_encoding(self) -> str:
+        """Map XTCE encoding names to Python codec names."""
+        mapping = {
+            StringEncodingEnum.UTF8: 'utf-8',
+            StringEncodingEnum.UTF16: 'utf-16-be',  # XTCE UTF-16 uses big-endian (with BOM handling)
+            StringEncodingEnum.UTF16LE: 'utf-16-le',
+            StringEncodingEnum.UTF16BE: 'utf-16-be',
+            StringEncodingEnum.US_ASCII: 'ascii',
+            StringEncodingEnum.ISO_8859_1: 'iso-8859-1',
+            StringEncodingEnum.WINDOWS_1252: 'cp1252',
+        }
+        return mapping.get(self.encoding, 'utf-8')
+
+    def _get_termination_bytes(self) -> bytes:
+        """Get termination character as bytes from hex string, or None if not specified."""
+        if self.sizeInBits is None or self.sizeInBits.terminationChar is None:
+            return None
+        try:
+            return bytes.fromhex(self.sizeInBits.terminationChar)
+        except ValueError:
+            return None
+
+    def encode(self, value: str) -> bitarray:
+        if not isinstance(value, str):
+            value = str(value)
+
+        python_encoding = self._get_python_encoding()
+        encoded_bytes = value.encode(python_encoding)
+
+        # Get target size in bits
+        target_bits = self.size({})
+        target_bytes = target_bits // 8
+
+        termination = self._get_termination_bytes()
+
+        # Truncate if too long
+        if len(encoded_bytes) > target_bytes:
+            encoded_bytes = encoded_bytes[:target_bytes]
+        elif len(encoded_bytes) < target_bytes:
+            # Add termination character if specified and there's room
+            if termination is not None and len(encoded_bytes) + len(termination) <= target_bytes:
+                encoded_bytes = encoded_bytes + termination
+            # Pad remaining space with null bytes
+            if len(encoded_bytes) < target_bytes:
+                encoded_bytes = encoded_bytes + b'\x00' * (target_bytes - len(encoded_bytes))
+
+        result = bitarray()
+        result.frombytes(encoded_bytes)
+        return result[:target_bits]
+
+    def decode(self, value: bitarray) -> str:
+        # Pad to byte boundary if needed
+        padded = value.copy()
+        remainder = len(padded) % 8
+        if remainder != 0:
+            padded = bitarray((8 - remainder) * [0]) + padded
+
+        encoded_bytes = padded.tobytes()
+
+        python_encoding = self._get_python_encoding()
+        termination = self._get_termination_bytes()
+
+        # Find and strip at termination character if specified
+        if termination is not None:
+            term_pos = encoded_bytes.find(termination)
+            if term_pos != -1:
+                encoded_bytes = encoded_bytes[:term_pos]
+        else:
+            # Default behavior: strip trailing null bytes
+            encoded_bytes = encoded_bytes.rstrip(b'\x00')
+
+        try:
+            return encoded_bytes.decode(python_encoding)
+        except UnicodeDecodeError:
+            # Fall back to replacing invalid characters
+            return encoded_bytes.decode(python_encoding, errors='replace')
+
+    def size(self, parameters) -> int:
+        if self.sizeInBits is None:
+            raise ValueError('StringDataEncoding requires sizeInBits')
+
+        if self.sizeInBits.fixedValue:
+            return self.sizeInBits.fixedValue
+        if self.sizeInBits.fixed:
+            return self.sizeInBits.fixed.fixedValue
+
+        if self.sizeInBits.dynamicValue:
+            ref = self.sizeInBits.dynamicValue.parameterInstanceRef.parameterRef
+            ref_value = parameters.get(ref)
+            if ref_value is None:
+                raise ValueError(f'dynamic value parameter {ref} not found')
+            return int(ref_value)
+
+        raise ValueError('unable to determine string size')
 
 
 class StringParameterType(BaseType):
@@ -828,7 +933,7 @@ class SpaceSystem(BaseType):
                     ts.enumeratedParameterType or [],
                     ts.binaryParameterType or [],
                     ts.booleanParameterType or [],
-                    #ts.stringParameterType or [], testing needed
+                    ts.stringParameterType or [],
                 ) for ts in parameter_type_sets if ts
             ],
             self.commandMetaData.argumentTypeSet.integerArgumentType or [],

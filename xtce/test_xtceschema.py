@@ -220,3 +220,290 @@ class TestBooleanParameterType(unittest.TestCase):
             integerDataEncoding=xtceschema.IntegerDataEncoding(sizeInBits=4),
         )
         self.assertEqual(typ_custom.data_encoding.size({}), 4)
+
+
+class TestStringDataEncoding(unittest.TestCase):
+
+    def test_encode_utf8_fixed_size(self):
+        """Test UTF-8 encoding with fixed size."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(fixed=xtceschema.Fixed(fixedValue=64)),
+        )
+
+        # 8 bytes = 64 bits
+        result = enc.encode("Hello")
+        self.assertEqual(len(result), 64)
+        # "Hello" is 5 bytes, padded with 3 null bytes
+        expected = bitarray()
+        expected.frombytes(b'Hello\x00\x00\x00')
+        self.assertEqual(result, expected)
+
+    def test_decode_utf8_fixed_size(self):
+        """Test UTF-8 decoding with fixed size."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(fixed=xtceschema.Fixed(fixedValue=64)),
+        )
+
+        # Encode then decode
+        bits = bitarray()
+        bits.frombytes(b'Hello\x00\x00\x00')
+        result = enc.decode(bits)
+        self.assertEqual(result, "Hello")
+
+    def test_encode_decode_roundtrip_utf8(self):
+        """Test encode/decode roundtrip for UTF-8."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(fixed=xtceschema.Fixed(fixedValue=128)),
+        )
+
+        test_strings = ["Hello", "Test123", "Short", ""]
+        for s in test_strings:
+            with self.subTest(s=s):
+                encoded = enc.encode(s)
+                decoded = enc.decode(encoded)
+                self.assertEqual(decoded, s)
+
+    def test_encode_truncates_long_string(self):
+        """Test that long strings are truncated to fit."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(fixed=xtceschema.Fixed(fixedValue=32)),
+        )
+
+        # Only 4 bytes available
+        result = enc.encode("HelloWorld")
+        self.assertEqual(len(result), 32)
+        decoded = enc.decode(result)
+        self.assertEqual(decoded, "Hell")
+
+    def test_encode_decode_utf16(self):
+        """Test UTF-16 encoding/decoding."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF16,
+            sizeInBits=xtceschema.SizeInBits(fixed=xtceschema.Fixed(fixedValue=64)),
+        )
+
+        # UTF-16 uses 2 bytes per character for basic ASCII
+        result = enc.encode("Hi")
+        self.assertEqual(len(result), 64)
+        decoded = enc.decode(result)
+        self.assertEqual(decoded, "Hi")
+
+    def test_encode_decode_ascii(self):
+        """Test US-ASCII encoding/decoding."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.US_ASCII,
+            sizeInBits=xtceschema.SizeInBits(fixed=xtceschema.Fixed(fixedValue=64)),
+        )
+
+        result = enc.encode("Test")
+        self.assertEqual(len(result), 64)
+        decoded = enc.decode(result)
+        self.assertEqual(decoded, "Test")
+
+    def test_size_with_fixed_value(self):
+        """Test size method with FixedValue."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(fixedValue=128),
+        )
+        self.assertEqual(enc.size({}), 128)
+
+    def test_size_with_fixed_object(self):
+        """Test size method with Fixed object."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(fixed=xtceschema.Fixed(fixedValue=256)),
+        )
+        self.assertEqual(enc.size({}), 256)
+
+    def test_size_with_dynamic_value(self):
+        """Test size method with dynamic value."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(
+                dynamicValue=xtceschema.DynamicValue(
+                    parameterInstanceRef=xtceschema.ParameterInstanceRef(parameterRef='StringLength')
+                )
+            ),
+        )
+        self.assertEqual(enc.size({'StringLength': 64}), 64)
+
+
+class TestStringParameterType(unittest.TestCase):
+
+    def test_data_encoding_property(self):
+        """Test that data_encoding returns StringDataEncoding."""
+        typ = xtceschema.StringParameterType(
+            name='test_string',
+            stringDataEncoding=xtceschema.StringDataEncoding(
+                encoding=xtceschema.StringEncodingEnum.UTF8,
+                sizeInBits=xtceschema.SizeInBits(fixed=xtceschema.Fixed(fixedValue=128)),
+            ),
+        )
+
+        enc = typ.data_encoding
+        self.assertIsInstance(enc, xtceschema.StringDataEncoding)
+        self.assertEqual(enc.size({}), 128)
+
+    def test_encode_decode_via_parameter_type(self):
+        """Test encode/decode through StringParameterType."""
+        typ = xtceschema.StringParameterType(
+            name='test_string',
+            stringDataEncoding=xtceschema.StringDataEncoding(
+                encoding=xtceschema.StringEncodingEnum.UTF8,
+                sizeInBits=xtceschema.SizeInBits(fixed=xtceschema.Fixed(fixedValue=128)),
+            ),
+        )
+
+        encoded = typ.data_encoding.encode("TestMessage")
+        self.assertEqual(len(encoded), 128)
+        decoded = typ.data_encoding.decode(encoded)
+        self.assertEqual(decoded, "TestMessage")
+
+
+class TestStringTerminationChar(unittest.TestCase):
+
+    def test_encode_with_null_terminator(self):
+        """Test encoding with explicit null termination character."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(
+                fixed=xtceschema.Fixed(fixedValue=64),
+                terminationChar='00',
+            ),
+        )
+
+        result = enc.encode("Hello")
+        self.assertEqual(len(result), 64)
+        # "Hello" (5 bytes) + null terminator (1 byte) + padding (2 bytes)
+        expected = bitarray()
+        expected.frombytes(b'Hello\x00\x00\x00')
+        self.assertEqual(result, expected)
+
+    def test_decode_with_null_terminator(self):
+        """Test decoding stops at termination character."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(
+                fixed=xtceschema.Fixed(fixedValue=64),
+                terminationChar='00',
+            ),
+        )
+
+        # String with null terminator followed by garbage
+        bits = bitarray()
+        bits.frombytes(b'Hello\x00XY')
+        result = enc.decode(bits)
+        self.assertEqual(result, "Hello")
+
+    def test_encode_with_crlf_terminator(self):
+        """Test encoding with CRLF (0D0A) termination."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(
+                fixed=xtceschema.Fixed(fixedValue=80),  # 10 bytes
+                terminationChar='0D0A',  # CRLF
+            ),
+        )
+
+        result = enc.encode("Test")
+        self.assertEqual(len(result), 80)
+        # "Test" (4 bytes) + CRLF (2 bytes) + padding (4 bytes)
+        expected = bitarray()
+        expected.frombytes(b'Test\r\n\x00\x00\x00\x00')
+        self.assertEqual(result, expected)
+
+    def test_decode_with_crlf_terminator(self):
+        """Test decoding stops at CRLF terminator."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(
+                fixed=xtceschema.Fixed(fixedValue=80),
+                terminationChar='0D0A',
+            ),
+        )
+
+        bits = bitarray()
+        bits.frombytes(b'Test\r\nXXXX')
+        result = enc.decode(bits)
+        self.assertEqual(result, "Test")
+
+    def test_encode_without_terminator_strips_nulls(self):
+        """Test that without terminator, decode strips trailing nulls."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(
+                fixed=xtceschema.Fixed(fixedValue=64),
+                # No terminationChar specified
+            ),
+        )
+
+        bits = bitarray()
+        bits.frombytes(b'Hello\x00\x00\x00')
+        result = enc.decode(bits)
+        self.assertEqual(result, "Hello")
+
+    def test_roundtrip_with_terminator(self):
+        """Test encode/decode roundtrip with termination character."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(
+                fixed=xtceschema.Fixed(fixedValue=128),
+                terminationChar='00',
+            ),
+        )
+
+        test_strings = ["Hello", "Test123", "Short", "A"]
+        for s in test_strings:
+            with self.subTest(s=s):
+                encoded = enc.encode(s)
+                decoded = enc.decode(encoded)
+                self.assertEqual(decoded, s)
+
+    def test_string_fills_entire_buffer_no_terminator_added(self):
+        """Test that when string exactly fills buffer, no terminator is added."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            sizeInBits=xtceschema.SizeInBits(
+                fixed=xtceschema.Fixed(fixedValue=40),  # 5 bytes
+                terminationChar='00',
+            ),
+        )
+
+        # "Hello" is exactly 5 bytes - no room for terminator
+        result = enc.encode("Hello")
+        expected = bitarray()
+        expected.frombytes(b'Hello')
+        self.assertEqual(result, expected)
+
+    def test_get_termination_bytes_helper(self):
+        """Test the _get_termination_bytes helper method."""
+        # With termination char
+        enc = xtceschema.StringDataEncoding(
+            sizeInBits=xtceschema.SizeInBits(
+                fixed=xtceschema.Fixed(fixedValue=64),
+                terminationChar='00',
+            ),
+        )
+        self.assertEqual(enc._get_termination_bytes(), b'\x00')
+
+        # With multi-byte termination
+        enc2 = xtceschema.StringDataEncoding(
+            sizeInBits=xtceschema.SizeInBits(
+                fixed=xtceschema.Fixed(fixedValue=64),
+                terminationChar='0D0A',
+            ),
+        )
+        self.assertEqual(enc2._get_termination_bytes(), b'\r\n')
+
+        # Without termination char
+        enc3 = xtceschema.StringDataEncoding(
+            sizeInBits=xtceschema.SizeInBits(
+                fixed=xtceschema.Fixed(fixedValue=64),
+            ),
+        )
+        self.assertIsNone(enc3._get_termination_bytes())

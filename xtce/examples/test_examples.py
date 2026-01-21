@@ -616,3 +616,78 @@ class TestUnittest(unittest.TestCase):
         want = bitarray(bytes([2, 11, 32, 94, 0]))
 
         self.assertEqual(want, got)
+
+    def test_decode_string_parameter(self):
+        """Test decoding a message with a string parameter.
+
+        The StatusMessage type is a UTF-8 encoded string with 64-bit (8 byte) fixed size.
+        """
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        # Message: MessageType=2, Dest=11, Src=32, ID=91, StatusMessage="Hello" (8 bytes, null-padded)
+        arg = bitarray(bytes([2, 11, 32, 91]) + b'Hello\x00\x00\x00')
+
+        got = enc.decode(ss.get_sequence_container('Reply_Status'), arg)
+
+        want = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_Status'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 91,
+                'StatusMessage': 'Hello',
+            }
+        )
+
+        self.assertEqual(want, got)
+
+    def test_encode_string_parameter(self):
+        """Test encoding a message with a string parameter.
+
+        The StatusMessage type is a UTF-8 encoded string with 64-bit (8 byte) fixed size.
+        """
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        msg = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_Status'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 91,
+                'StatusMessage': 'Hello',
+            }
+        )
+
+        got = enc.encode(msg)
+        # MessageType=2, Dest=11, Src=32, ID=91, StatusMessage="Hello" (8 bytes, null-padded)
+        want = bitarray(bytes([2, 11, 32, 91]) + b'Hello\x00\x00\x00')
+
+        self.assertEqual(want, got)
+
+    def test_encode_decode_string_roundtrip(self):
+        """Test that encoding and decoding a string message produces the same result."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        msg = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_Status'),
+            entries={
+                'MessageType': 2,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 91,
+                'StatusMessage': 'OK',
+            }
+        )
+
+        encoded = enc.encode(msg)
+        decoded = enc.decode(msg.message_type, encoded)
+
+        self.assertEqual(msg.entries, decoded.entries)
