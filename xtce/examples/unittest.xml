@@ -231,6 +231,32 @@
 			<xtce:BooleanArgumentType name="EnableFlag" zeroStringValue="OFF" oneStringValue="ON">
 				<xtce:IntegerDataEncoding sizeInBits="8" encoding="unsigned"/>
 			</xtce:BooleanArgumentType>
+			<xtce:ArrayArgumentType name="ByteArrayArg" arrayTypeRef="AnyByte">
+				<xtce:DimensionList>
+					<xtce:Dimension>
+						<xtce:StartingIndex>
+							<xtce:FixedValue>0</xtce:FixedValue>
+						</xtce:StartingIndex>
+						<xtce:EndingIndex>
+							<xtce:FixedValue>3</xtce:FixedValue>
+						</xtce:EndingIndex>
+					</xtce:Dimension>
+				</xtce:DimensionList>
+			</xtce:ArrayArgumentType>
+			<xtce:ArrayArgumentType name="DynamicByteArrayArg" arrayTypeRef="AnyByte">
+				<xtce:DimensionList>
+					<xtce:Dimension>
+						<xtce:StartingIndex>
+							<xtce:FixedValue>1</xtce:FixedValue>
+						</xtce:StartingIndex>
+						<xtce:EndingIndex>
+							<xtce:DynamicValue>
+								<xtce:ArgumentInstanceRef argumentRef="ArrayCount"/>
+							</xtce:DynamicValue>
+						</xtce:EndingIndex>
+					</xtce:Dimension>
+				</xtce:DimensionList>
+			</xtce:ArrayArgumentType>
 		</xtce:ArgumentTypeSet>
 
 		<xtce:MetaCommandSet>
@@ -293,6 +319,42 @@
 					<xtce:BaseContainer containerRef="CommandMessageBase">
 						<xtce:RestrictionCriteria>
 							<xtce:Comparison  parameterRef="MessageID" value="97"/>
+						</xtce:RestrictionCriteria>
+					</xtce:BaseContainer>
+				</xtce:CommandContainer>
+			</xtce:MetaCommand>
+
+			<xtce:MetaCommand abstract="false" name="Command_SendData">
+				<xtce:BaseMetaCommand metaCommandRef="CommandMessageBase"/>
+				<xtce:ArgumentList>
+					<xtce:Argument argumentTypeRef="ByteArrayArg" name="Data"/>
+				</xtce:ArgumentList>
+				<xtce:CommandContainer name="Command_SendData">
+					<xtce:EntryList>
+						<xtce:ArgumentRefEntry argumentRef="Data"/>
+					</xtce:EntryList>
+					<xtce:BaseContainer containerRef="CommandMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:Comparison  parameterRef="MessageID" value="96"/>
+						</xtce:RestrictionCriteria>
+					</xtce:BaseContainer>
+				</xtce:CommandContainer>
+			</xtce:MetaCommand>
+
+			<xtce:MetaCommand abstract="false" name="Command_SendDynamicData">
+				<xtce:BaseMetaCommand metaCommandRef="CommandMessageBase"/>
+				<xtce:ArgumentList>
+					<xtce:Argument argumentTypeRef="AnyByte" name="ArrayCount"/>
+					<xtce:Argument argumentTypeRef="DynamicByteArrayArg" name="DynamicData"/>
+				</xtce:ArgumentList>
+				<xtce:CommandContainer name="Command_SendDynamicData">
+					<xtce:EntryList>
+						<xtce:ArgumentRefEntry argumentRef="ArrayCount"/>
+						<xtce:ArgumentRefEntry argumentRef="DynamicData"/>
+					</xtce:EntryList>
+					<xtce:BaseContainer containerRef="CommandMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:Comparison  parameterRef="MessageID" value="90"/>
 						</xtce:RestrictionCriteria>
 					</xtce:BaseContainer>
 				</xtce:CommandContainer>

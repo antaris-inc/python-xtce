@@ -221,8 +221,8 @@ class SpaceSystemEncoder:
             encoded_entry = b[:encoded_bit_length]
             del b[:encoded_bit_length]
 
-            # Pass parameters to decode for types that need them (e.g. ArrayParameterType with dynamic size)
-            if isinstance(ent_type, xtceschema.ArrayParameterType):
+            # Pass parameters to decode for types that need them (e.g. ArrayParameterType/ArrayArgumentType with dynamic size)
+            if isinstance(ent_type, (xtceschema.ArrayParameterType, xtceschema.ArrayArgumentType)):
                 msg.entries[ent_name] = ent_type.data_encoding.decode(encoded_entry, msg.entries)
             else:
                 msg.entries[ent_name] = ent_type.data_encoding.decode(encoded_entry)

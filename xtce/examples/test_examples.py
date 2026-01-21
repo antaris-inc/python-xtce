@@ -825,3 +825,194 @@ class TestUnittest(unittest.TestCase):
         self.assertIsInstance(decoded.entries['Enable'], bool)
         self.assertTrue(decoded.entries['Enable'])
         self.assertEqual(decoded.entries['Intermediate'], 50)
+
+    def test_encode_array_argument(self):
+        """Test encoding a command with an array argument."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendData'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'Data': [10, 20, 30, 40],
+            }
+        )
+
+        got = enc.encode(cmd)
+        # MessageType=1, Dest=11, Src=32, ID=96, Intermediate=50, Data=[10,20,30,40]
+        want = bitarray(bytes([1, 11, 32, 96, 50, 10, 20, 30, 40]))
+
+        self.assertEqual(want, got)
+
+    def test_decode_array_argument(self):
+        """Test decoding a command with an array argument."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        # MessageType=1, Dest=11, Src=32, ID=96, Intermediate=50, Data=[10,20,30,40]
+        arg = bitarray(bytes([1, 11, 32, 96, 50, 10, 20, 30, 40]))
+
+        got = enc.decode(ss.get_meta_command('Command_SendData'), arg)
+
+        want = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendData'),
+            entries={
+                'MessageType': 1,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 96,
+                'Intermediate': 50,
+                'Data': [10, 20, 30, 40],
+            }
+        )
+
+        self.assertEqual(want, got)
+
+    def test_array_argument_roundtrip(self):
+        """Test encode/decode roundtrip for array arguments."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendData'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'Data': [1, 2, 3, 4],
+            }
+        )
+
+        encoded = enc.encode(cmd)
+        decoded = enc.decode(cmd.message_type, encoded)
+
+        self.assertEqual(decoded.entries['Data'], [1, 2, 3, 4])
+        self.assertEqual(decoded.entries['Intermediate'], 50)
+
+    def test_encode_dynamic_array_argument(self):
+        """Test encoding a command with a dynamic-size array argument."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendDynamicData'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'ArrayCount': 3,
+                'DynamicData': [10, 20, 30],
+            }
+        )
+
+        got = enc.encode(cmd)
+        # MessageType=1, Dest=11, Src=32, ID=90, Intermediate=50, ArrayCount=3, Data=[10,20,30]
+        want = bitarray(bytes([1, 11, 32, 90, 50, 3, 10, 20, 30]))
+
+        self.assertEqual(want, got)
+
+    def test_decode_dynamic_array_argument(self):
+        """Test decoding a command with a dynamic-size array argument."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        # MessageType=1, Dest=11, Src=32, ID=90, Intermediate=50, ArrayCount=3, Data=[10,20,30]
+        arg = bitarray(bytes([1, 11, 32, 90, 50, 3, 10, 20, 30]))
+
+        got = enc.decode(ss.get_meta_command('Command_SendDynamicData'), arg)
+
+        want = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendDynamicData'),
+            entries={
+                'MessageType': 1,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 90,
+                'Intermediate': 50,
+                'ArrayCount': 3,
+                'DynamicData': [10, 20, 30],
+            }
+        )
+
+        self.assertEqual(want, got)
+
+    def test_dynamic_array_argument_roundtrip(self):
+        """Test encode/decode roundtrip for dynamic-size array arguments."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendDynamicData'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'ArrayCount': 5,
+                'DynamicData': [1, 2, 3, 4, 5],
+            }
+        )
+
+        encoded = enc.encode(cmd)
+        decoded = enc.decode(cmd.message_type, encoded)
+
+        self.assertEqual(decoded.entries['DynamicData'], [1, 2, 3, 4, 5])
+        self.assertEqual(decoded.entries['ArrayCount'], 5)
+        self.assertEqual(decoded.entries['Intermediate'], 50)
+
+    def test_encode_dynamic_array_argument_zero_size(self):
+        """Test encoding a command with a zero-size dynamic array argument."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendDynamicData'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'ArrayCount': 0,
+                'DynamicData': [],
+            }
+        )
+
+        got = enc.encode(cmd)
+        # MessageType=1, Dest=11, Src=32, ID=90, Intermediate=50, ArrayCount=0
+        want = bitarray(bytes([1, 11, 32, 90, 50, 0]))
+
+        self.assertEqual(want, got)
+
+    def test_decode_dynamic_array_argument_zero_size(self):
+        """Test decoding a command with a zero-size dynamic array argument."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        # MessageType=1, Dest=11, Src=32, ID=90, Intermediate=50, ArrayCount=0
+        arg = bitarray(bytes([1, 11, 32, 90, 50, 0]))
+
+        got = enc.decode(ss.get_meta_command('Command_SendDynamicData'), arg)
+
+        want = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendDynamicData'),
+            entries={
+                'MessageType': 1,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 90,
+                'Intermediate': 50,
+                'ArrayCount': 0,
+                'DynamicData': [],
+            }
+        )
+
+        self.assertEqual(want, got)

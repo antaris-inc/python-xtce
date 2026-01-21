@@ -194,8 +194,13 @@ class ParameterInstanceRef(BaseType):
     parameterRef: str
 
 
+class ArgumentInstanceRef(BaseType):
+    argumentRef: str
+
+
 class DynamicValue(BaseType):
-    parameterInstanceRef: ParameterInstanceRef
+    parameterInstanceRef: ParameterInstanceRef = None
+    argumentInstanceRef: ArgumentInstanceRef = None
 
 
 class SizeInBits(BaseType):
@@ -545,10 +550,16 @@ class DimensionIndex(BaseType):
         if self.fixedValue is not None:
             return self.fixedValue.value
         if self.dynamicValue is not None:
-            ref = self.dynamicValue.parameterInstanceRef.parameterRef
-            if ref not in parameters:
-                raise ValueError(f"Dynamic array size parameter '{ref}' not found in parameters")
-            return parameters[ref]
+            if self.dynamicValue.parameterInstanceRef is not None:
+                ref = self.dynamicValue.parameterInstanceRef.parameterRef
+                if ref not in parameters:
+                    raise ValueError(f"Dynamic array size parameter '{ref}' not found in parameters")
+                return parameters[ref]
+            if self.dynamicValue.argumentInstanceRef is not None:
+                ref = self.dynamicValue.argumentInstanceRef.argumentRef
+                if ref not in parameters:
+                    raise ValueError(f"Dynamic array size argument '{ref}' not found in parameters")
+                return parameters[ref]
         raise ValueError("DimensionIndex has no fixed or dynamic value")
 
 class Dimension(BaseType):
@@ -593,6 +604,41 @@ class ArrayParameterType(BaseType):
     def size(self, parameters: dict) -> int:
         count = self.item_count(parameters)
         return count * self.itemParameterType.data_encoding.size(parameters)
+
+
+class ArrayArgumentType(BaseType):
+    name: str
+    shortDescription: str = None
+    longDescription: str = None
+
+    arrayTypeRef: str
+    dimensionList: DimensionList = None
+
+    # initialized when used by encoder
+    itemArgumentType: typing.Any = None
+
+    def item_count(self, parameters: dict) -> int:
+        dim = self.dimensionList.dimension[0]
+        start = dim.startingIndex.get_value(parameters)
+        end = dim.endingIndex.get_value(parameters)
+        return 1 + end - start
+
+    @property
+    def data_encoding(self):
+        return self
+
+    def encode(self, value: list) -> bitarray:
+        return bitarray(itertools.chain(*[self.itemArgumentType.data_encoding.encode(v) for v in value]))
+
+    def decode(self, value: bitarray, parameters: dict = None) -> list:
+        parameters = parameters or {}
+        count = self.item_count(parameters)
+        item_size = self.itemArgumentType.data_encoding.size(parameters)
+        return [self.itemArgumentType.data_encoding.decode(value[i*item_size:(i+1)*item_size]) for i in range(count)]
+
+    def size(self, parameters: dict) -> int:
+        count = self.item_count(parameters)
+        return count * self.itemArgumentType.data_encoding.size(parameters)
 
 
 class BooleanParameterType(BaseType):
@@ -902,6 +948,7 @@ class ArgumentTypeSet(BaseType):
     absoluteTimeArgumentType: list[AbsoluteTimeArgumentType] = None
     enumeratedArgumentType: list[EnumeratedArgumentType] = None
     booleanArgumentType: list[BooleanArgumentType] = None
+    arrayArgumentType: list[ArrayArgumentType] = None
 
 
 class MetaCommandSet(BaseType):
@@ -946,6 +993,7 @@ class SpaceSystem(BaseType):
             self.commandMetaData.argumentTypeSet.integerArgumentType or [],
             self.commandMetaData.argumentTypeSet.enumeratedArgumentType or [],
             self.commandMetaData.argumentTypeSet.booleanArgumentType or [],
+            self.commandMetaData.argumentTypeSet.arrayArgumentType or [],
         ))
         return dict([(o.name, o) for o in objs])
 
@@ -958,6 +1006,12 @@ class SpaceSystem(BaseType):
         if isinstance(entry_type, ArrayParameterType):
             try:
                 entry_type.itemParameterType = self.get_entry_type(entry_type.arrayTypeRef)
+            except Exception as exc:
+                raise ValueError(f"failed to initialize array item type: {exc}")
+
+        if isinstance(entry_type, ArrayArgumentType):
+            try:
+                entry_type.itemArgumentType = self.get_entry_type(entry_type.arrayTypeRef)
             except Exception as exc:
                 raise ValueError(f"failed to initialize array item type: {exc}")
 
