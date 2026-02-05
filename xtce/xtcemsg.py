@@ -114,16 +114,6 @@ class SpaceSystemEncoder:
                     break
                 cur = self.space_system.get_meta_command(cur.baseMetaCommand.metaCommandRef)
 
-        # Auto-populate __size entries for strings (size in bits)
-        for arg_name, arg_type_name in arg_type_idx.items():
-            arg_type = self.space_system.get_entry_type(arg_type_name)
-            size_arg_name = f'{arg_name}__size'
-            if size_arg_name in arg_type_idx and arg_name in msg.entries:
-                if isinstance(arg_type, xtceschema.StringArgumentType):
-                    str_value = msg.entries[arg_name]
-                    if isinstance(str_value, str):
-                        msg.entries[size_arg_name] = len(str_value.encode('utf-8')) * 8
-
         encoded_entries = list[bitarray]()
 
         def encode_and_append_entry(ent_name, ent_type_name):
