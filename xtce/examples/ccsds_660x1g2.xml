@@ -1,6 +1,6 @@
 <xtce:SpaceSystem name="SpaceVehicle"
-xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204 XTCE12.xsd"
-	xmlns:xtce="http://www.omg.org/spec/XTCE/20180204"
+xsi:schemaLocation="http://www.omg.org/spec/XTCE/20250214 XTCE13.xsd"
+	xmlns:xtce="http://www.omg.org/spec/XTCE/20250214"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<xtce:TelemetryMetaData>
 		<xtce:ParameterTypeSet>

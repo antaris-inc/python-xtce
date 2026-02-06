@@ -1,4 +1,4 @@
-<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/spec/XTCE/20180204" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="unittest">
+<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/spec/XTCE/20250214" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="unittest">
 	<xtce:Header validationStatus="Validated" date="2019-04-04"	version="0.2"/>
 	<xtce:TelemetryMetaData>
 		<xtce:ParameterTypeSet>
