@@ -257,6 +257,24 @@
 					</xtce:Dimension>
 				</xtce:DimensionList>
 			</xtce:ArrayArgumentType>
+			<xtce:StringArgumentType name="FixedStringArg">
+				<xtce:StringDataEncoding encoding="UTF-8">
+					<xtce:SizeInBits>
+						<xtce:Fixed>
+							<xtce:FixedValue>64</xtce:FixedValue>
+						</xtce:Fixed>
+					</xtce:SizeInBits>
+				</xtce:StringDataEncoding>
+			</xtce:StringArgumentType>
+			<xtce:StringArgumentType name="VariableStringArg">
+				<xtce:StringDataEncoding encoding="UTF-8">
+					<xtce:Variable maxSizeInBits="256">
+						<xtce:DynamicValue>
+							<xtce:ArgumentInstanceRef argumentRef="Label__size"/>
+						</xtce:DynamicValue>
+					</xtce:Variable>
+				</xtce:StringDataEncoding>
+			</xtce:StringArgumentType>
 		</xtce:ArgumentTypeSet>
 
 		<xtce:MetaCommandSet>
@@ -355,6 +373,42 @@
 					<xtce:BaseContainer containerRef="CommandMessageBase">
 						<xtce:RestrictionCriteria>
 							<xtce:Comparison  parameterRef="MessageID" value="90"/>
+						</xtce:RestrictionCriteria>
+					</xtce:BaseContainer>
+				</xtce:CommandContainer>
+			</xtce:MetaCommand>
+
+			<xtce:MetaCommand abstract="false" name="Command_SendFixedString">
+				<xtce:BaseMetaCommand metaCommandRef="CommandMessageBase"/>
+				<xtce:ArgumentList>
+					<xtce:Argument argumentTypeRef="FixedStringArg" name="Message"/>
+				</xtce:ArgumentList>
+				<xtce:CommandContainer name="Command_SendFixedString">
+					<xtce:EntryList>
+						<xtce:ArgumentRefEntry argumentRef="Message"/>
+					</xtce:EntryList>
+					<xtce:BaseContainer containerRef="CommandMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:Comparison  parameterRef="MessageID" value="89"/>
+						</xtce:RestrictionCriteria>
+					</xtce:BaseContainer>
+				</xtce:CommandContainer>
+			</xtce:MetaCommand>
+
+			<xtce:MetaCommand abstract="false" name="Command_SendLabel">
+				<xtce:BaseMetaCommand metaCommandRef="CommandMessageBase"/>
+				<xtce:ArgumentList>
+					<xtce:Argument argumentTypeRef="AnyByte" name="Label__size"/>
+					<xtce:Argument argumentTypeRef="VariableStringArg" name="Label"/>
+				</xtce:ArgumentList>
+				<xtce:CommandContainer name="Command_SendLabel">
+					<xtce:EntryList>
+						<xtce:ArgumentRefEntry argumentRef="Label__size"/>
+						<xtce:ArgumentRefEntry argumentRef="Label"/>
+					</xtce:EntryList>
+					<xtce:BaseContainer containerRef="CommandMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:Comparison  parameterRef="MessageID" value="88"/>
 						</xtce:RestrictionCriteria>
 					</xtce:BaseContainer>
 				</xtce:CommandContainer>

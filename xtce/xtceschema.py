@@ -217,6 +217,13 @@ class SizeInBits(BaseType):
         raise ValueError('no fixed value specified')
 
 
+class VariableStringType(BaseType):
+    """Represents the Variable element for variable-length strings in XTCE."""
+    maxSizeInBits: int
+    dynamicValue: DynamicValue = None
+    terminationChar: str = "00"  # hexBinary string like "00"
+
+
 
 class FloatDataEncoding(BaseType):
     encoding: SignedEnum = SignedEnum.unsigned
@@ -382,6 +389,7 @@ class StringDataEncoding(BaseType):
     encoding: StringEncodingEnum = StringEncodingEnum.UTF8
     bitOrder: str = BitOrderEnum.MSB
     sizeInBits: SizeInBits = None
+    variable: VariableStringType = None  # For variable-length strings
 
     def _get_python_encoding(self) -> str:
         """Map XTCE encoding names to Python codec names."""
@@ -398,10 +406,15 @@ class StringDataEncoding(BaseType):
 
     def _get_termination_bytes(self) -> bytes:
         """Get termination character as bytes from hex string, or None if not specified."""
-        if self.sizeInBits is None or self.sizeInBits.terminationChar is None:
+        term_char = None
+        if self.sizeInBits is not None:
+            term_char = self.sizeInBits.terminationChar
+        elif self.variable is not None:
+            term_char = self.variable.terminationChar
+        if term_char is None:
             return None
         try:
-            return bytes.fromhex(self.sizeInBits.terminationChar)
+            return bytes.fromhex(term_char)
         except ValueError:
             return None
 
@@ -461,8 +474,26 @@ class StringDataEncoding(BaseType):
             return encoded_bytes.decode(python_encoding, errors='replace')
 
     def size(self, parameters) -> int:
+        # Handle Variable element (for variable-length strings)
+        if self.variable is not None:
+            if self.variable.dynamicValue:
+                # Check for argumentInstanceRef first (commands), then parameterInstanceRef (telemetry)
+                if self.variable.dynamicValue.argumentInstanceRef:
+                    ref = self.variable.dynamicValue.argumentInstanceRef.argumentRef
+                elif self.variable.dynamicValue.parameterInstanceRef:
+                    ref = self.variable.dynamicValue.parameterInstanceRef.parameterRef
+                else:
+                    raise ValueError('Variable dynamicValue has no reference')
+                ref_value = parameters.get(ref)
+                if ref_value is None:
+                    raise ValueError(f'dynamic value reference {ref} not found')
+                return int(ref_value)
+            # Fall back to maxSizeInBits if no dynamic value
+            return self.variable.maxSizeInBits
+
+        # Handle SizeInBits element (for fixed-length strings)
         if self.sizeInBits is None:
-            raise ValueError('StringDataEncoding requires sizeInBits')
+            raise ValueError('StringDataEncoding requires sizeInBits or variable')
 
         if self.sizeInBits.fixedValue:
             return self.sizeInBits.fixedValue
@@ -470,16 +501,39 @@ class StringDataEncoding(BaseType):
             return self.sizeInBits.fixed.fixedValue
 
         if self.sizeInBits.dynamicValue:
-            ref = self.sizeInBits.dynamicValue.parameterInstanceRef.parameterRef
+            # Check for argumentInstanceRef first (commands), then parameterInstanceRef (telemetry)
+            if self.sizeInBits.dynamicValue.argumentInstanceRef:
+                ref = self.sizeInBits.dynamicValue.argumentInstanceRef.argumentRef
+            elif self.sizeInBits.dynamicValue.parameterInstanceRef:
+                ref = self.sizeInBits.dynamicValue.parameterInstanceRef.parameterRef
+            else:
+                raise ValueError('dynamicValue has no reference')
             ref_value = parameters.get(ref)
             if ref_value is None:
-                raise ValueError(f'dynamic value parameter {ref} not found')
+                raise ValueError(f'dynamic value reference {ref} not found')
             return int(ref_value)
 
         raise ValueError('unable to determine string size')
 
 
 class StringParameterType(BaseType):
+    name: str
+    shortDescription: str = None
+    longDescription: str = None
+
+    unitSet: UnitSet = None
+
+    stringDataEncoding: StringDataEncoding = None
+
+    @property
+    def data_encoding(self):
+        if self.stringDataEncoding:
+            return self.stringDataEncoding
+
+        return StringDataEncoding()
+
+
+class StringArgumentType(BaseType):
     name: str
     shortDescription: str = None
     longDescription: str = None
@@ -948,6 +1002,7 @@ class ArgumentTypeSet(BaseType):
     absoluteTimeArgumentType: list[AbsoluteTimeArgumentType] = None
     enumeratedArgumentType: list[EnumeratedArgumentType] = None
     booleanArgumentType: list[BooleanArgumentType] = None
+    stringArgumentType: list[StringArgumentType] = None
     arrayArgumentType: list[ArrayArgumentType] = None
 
 
@@ -993,6 +1048,7 @@ class SpaceSystem(BaseType):
             self.commandMetaData.argumentTypeSet.integerArgumentType or [],
             self.commandMetaData.argumentTypeSet.enumeratedArgumentType or [],
             self.commandMetaData.argumentTypeSet.booleanArgumentType or [],
+            self.commandMetaData.argumentTypeSet.stringArgumentType or [],
             self.commandMetaData.argumentTypeSet.arrayArgumentType or [],
         ))
         return dict([(o.name, o) for o in objs])
