@@ -219,9 +219,9 @@ class SizeInBits(BaseType):
 
 class VariableStringType(BaseType):
     """Represents the Variable element for variable-length strings in XTCE."""
-    maxSizeInBits: int = 2048  # Required attribute for ArgumentVariableStringType
+    maxSizeInBits: int
     dynamicValue: DynamicValue = None
-    terminationChar: str = None  # hexBinary string like "00"
+    terminationChar: str = "00"  # hexBinary string like "00"
 
 
 

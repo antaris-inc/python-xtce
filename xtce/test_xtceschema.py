@@ -372,6 +372,64 @@ class TestStringParameterType(unittest.TestCase):
         decoded = typ.data_encoding.decode(encoded)
         self.assertEqual(decoded, "TestMessage")
 
+    def test_variable_string_encode_decode_via_parameter_type(self):
+        """Test encode/decode through StringParameterType with variable-length string."""
+        typ = xtceschema.StringParameterType(
+            name='test_variable_string',
+            stringDataEncoding=xtceschema.StringDataEncoding(
+                encoding=xtceschema.StringEncodingEnum.UTF8,
+                variable=xtceschema.VariableStringType(
+                    maxSizeInBits=256,
+                ),
+            ),
+        )
+
+        enc = typ.data_encoding
+        self.assertIsInstance(enc, xtceschema.StringDataEncoding)
+        self.assertEqual(enc.size({}), 256)
+
+        encoded = enc.encode("Hello")
+        self.assertEqual(len(encoded), 256)
+        decoded = enc.decode(encoded)
+        self.assertEqual(decoded, "Hello")
+
+    def test_variable_string_with_dynamic_value_via_parameter_type(self):
+        """Test StringParameterType with variable-length string using dynamic value."""
+        typ = xtceschema.StringParameterType(
+            name='test_dynamic_variable_string',
+            stringDataEncoding=xtceschema.StringDataEncoding(
+                encoding=xtceschema.StringEncodingEnum.UTF8,
+                variable=xtceschema.VariableStringType(
+                    maxSizeInBits=512,
+                    dynamicValue=xtceschema.DynamicValue(
+                        parameterInstanceRef=xtceschema.ParameterInstanceRef(parameterRef='StringLen'),
+                    ),
+                ),
+            ),
+        )
+
+        enc = typ.data_encoding
+        self.assertEqual(enc.size({'StringLen': 80}), 80)
+
+    def test_variable_string_termination_via_parameter_type(self):
+        """Test StringParameterType with variable-length string using termination character."""
+        typ = xtceschema.StringParameterType(
+            name='test_terminated_variable_string',
+            stringDataEncoding=xtceschema.StringDataEncoding(
+                encoding=xtceschema.StringEncodingEnum.UTF8,
+                variable=xtceschema.VariableStringType(
+                    maxSizeInBits=128,
+                    terminationChar='00',
+                ),
+            ),
+        )
+
+        enc = typ.data_encoding
+        encoded = enc.encode("Hi")
+        self.assertEqual(len(encoded), 128)
+        decoded = enc.decode(encoded)
+        self.assertEqual(decoded, "Hi")
+
 
 class TestStringTerminationChar(unittest.TestCase):
 
@@ -559,10 +617,10 @@ class TestVariableStringType(unittest.TestCase):
 
     def test_default_values(self):
         """Test VariableStringType default values."""
-        v = xtceschema.VariableStringType()
+        v = xtceschema.VariableStringType(maxSizeInBits=2048)
         self.assertEqual(v.maxSizeInBits, 2048)
         self.assertIsNone(v.dynamicValue)
-        self.assertIsNone(v.terminationChar)
+        self.assertEqual(v.terminationChar, '00')
 
     def test_custom_values(self):
         """Test VariableStringType with custom values."""
@@ -619,6 +677,7 @@ class TestStringDataEncodingVariable(unittest.TestCase):
         enc = xtceschema.StringDataEncoding(
             encoding=xtceschema.StringEncodingEnum.UTF8,
             variable=xtceschema.VariableStringType(
+                maxSizeInBits=256,
                 dynamicValue=xtceschema.DynamicValue(
                     argumentInstanceRef=xtceschema.ArgumentInstanceRef(argumentRef='Missing'),
                 ),
@@ -632,6 +691,7 @@ class TestStringDataEncodingVariable(unittest.TestCase):
         enc = xtceschema.StringDataEncoding(
             encoding=xtceschema.StringEncodingEnum.UTF8,
             variable=xtceschema.VariableStringType(
+                maxSizeInBits=256,
                 dynamicValue=xtceschema.DynamicValue(),
             ),
         )
@@ -649,13 +709,13 @@ class TestStringDataEncodingVariable(unittest.TestCase):
         )
         self.assertEqual(enc._get_termination_bytes(), b'\x00')
 
-    def test_termination_bytes_variable_none(self):
-        """Test _get_termination_bytes() returns None when variable has no terminationChar."""
+    def test_termination_bytes_variable_default(self):
+        """Test _get_termination_bytes() returns null byte when variable uses default terminationChar."""
         enc = xtceschema.StringDataEncoding(
             encoding=xtceschema.StringEncodingEnum.UTF8,
             variable=xtceschema.VariableStringType(maxSizeInBits=256),
         )
-        self.assertIsNone(enc._get_termination_bytes())
+        self.assertEqual(enc._get_termination_bytes(), b'\x00')
 
     def test_no_size_or_variable_raises(self):
         """Test size() raises ValueError when neither sizeInBits nor variable is set."""
