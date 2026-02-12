@@ -272,6 +272,7 @@
 						<xtce:DynamicValue>
 							<xtce:ArgumentInstanceRef argumentRef="Label__size"/>
 						</xtce:DynamicValue>
+						<xtce:TerminationChar>00</xtce:TerminationChar>
 					</xtce:Variable>
 				</xtce:StringDataEncoding>
 			</xtce:StringArgumentType>
