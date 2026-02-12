@@ -15,7 +15,7 @@ _DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def _load_xtce_xsd():
-    xsd_file = os.path.join(_DIR, 'xtce_1.2.xsd')
+    xsd_file = os.path.join(_DIR, 'xtce_1.3.xsd')
     return xmlschema.XMLSchema(xsd_file)
 
 

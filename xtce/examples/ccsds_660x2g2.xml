@@ -1,5 +1,5 @@
 <xtce:SpaceSystem
-	xmlns:xtce="http://www.omg.org/spec/XTCE/20180204"
+	xmlns:xtce="http://www.omg.org/spec/XTCE/20250214"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="GovSat"
 shortDescription="A GovSat example">
 	<xtce:LongDescription>This file is intended to give a quick
