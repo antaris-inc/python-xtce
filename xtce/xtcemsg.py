@@ -119,7 +119,10 @@ class SpaceSystemEncoder:
         def encode_and_append_entry(ent_name, ent_type_name):
             ent_type = self.space_system.get_entry_type(ent_type_name)
             ent_value = msg.entries[ent_name]
-            encoded_entry = ent_type.data_encoding.encode(ent_value)
+            if isinstance(ent_type, (xtceschema.StringParameterType, xtceschema.StringArgumentType)):
+                encoded_entry = ent_type.data_encoding.encode(ent_value, msg.entries)
+            else:
+                encoded_entry = ent_type.data_encoding.encode(ent_value)
             encoded_entries.append(encoded_entry)
 
         def conditions_met(conds):

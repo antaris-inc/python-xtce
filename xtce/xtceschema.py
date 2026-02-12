@@ -418,7 +418,7 @@ class StringDataEncoding(BaseType):
         except ValueError:
             return None
 
-    def encode(self, value: str) -> bitarray:
+    def encode(self, value: str, parameters=None) -> bitarray:
         if not isinstance(value, str):
             value = str(value)
 
@@ -426,7 +426,7 @@ class StringDataEncoding(BaseType):
         encoded_bytes = value.encode(python_encoding)
 
         # Get target size in bits
-        target_bits = self.size({})
+        target_bits = self.size(parameters or {})
         target_bytes = target_bits // 8
 
         termination = self._get_termination_bytes()

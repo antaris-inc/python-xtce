@@ -763,3 +763,100 @@ class TestStringDataEncodingSizeArgumentRef(unittest.TestCase):
         )
         with self.assertRaises(ValueError):
             enc.size({})
+
+
+class TestStringDataEncodingEncodeWithParameters(unittest.TestCase):
+    """Tests for StringDataEncoding.encode() accepting a parameters dict to resolve dynamic sizes."""
+
+    def test_encode_variable_with_dynamic_parameter_ref(self):
+        """Test encode() uses parameters dict to resolve parameterInstanceRef size."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            variable=xtceschema.VariableStringType(
+                maxSizeInBits=2048,
+                dynamicValue=xtceschema.DynamicValue(
+                    parameterInstanceRef=xtceschema.ParameterInstanceRef(parameterRef='element_type__size'),
+                ),
+            ),
+        )
+
+        # "satellite" is 9 bytes = 72 bits
+        value = "satellite"
+        size_bits = len(value.encode('utf-8')) * 8
+        parameters = {'element_type__size': size_bits}
+
+        encoded = enc.encode(value, parameters)
+        self.assertEqual(len(encoded), size_bits)
+
+        decoded = enc.decode(encoded)
+        self.assertEqual(decoded, value)
+
+    def test_encode_variable_with_dynamic_argument_ref(self):
+        """Test encode() uses parameters dict to resolve argumentInstanceRef size."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            variable=xtceschema.VariableStringType(
+                maxSizeInBits=2048,
+                dynamicValue=xtceschema.DynamicValue(
+                    argumentInstanceRef=xtceschema.ArgumentInstanceRef(argumentRef='cmd__name__size'),
+                ),
+            ),
+        )
+
+        value = "hello"
+        size_bits = len(value.encode('utf-8')) * 8
+        parameters = {'cmd__name__size': size_bits}
+
+        encoded = enc.encode(value, parameters)
+        self.assertEqual(len(encoded), size_bits)
+
+        decoded = enc.decode(encoded)
+        self.assertEqual(decoded, value)
+
+    def test_encode_variable_dynamic_ref_without_parameters_raises(self):
+        """Test encode() raises ValueError when dynamicValue is set but no parameters provided."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            variable=xtceschema.VariableStringType(
+                maxSizeInBits=2048,
+                dynamicValue=xtceschema.DynamicValue(
+                    parameterInstanceRef=xtceschema.ParameterInstanceRef(parameterRef='missing_ref'),
+                ),
+            ),
+        )
+
+        with self.assertRaises(ValueError):
+            enc.encode("test")
+
+    def test_encode_variable_no_dynamic_value_uses_max_size(self):
+        """Test encode() falls back to maxSizeInBits when no dynamicValue, with or without parameters."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            variable=xtceschema.VariableStringType(maxSizeInBits=128),
+        )
+
+        encoded_no_params = enc.encode("test")
+        self.assertEqual(len(encoded_no_params), 128)
+
+        encoded_with_params = enc.encode("test", {'some_key': 99})
+        self.assertEqual(len(encoded_with_params), 128)
+
+    def test_encode_roundtrip_variable_dynamic_size(self):
+        """Test full encode/decode roundtrip with variable dynamic size for various strings."""
+        enc = xtceschema.StringDataEncoding(
+            encoding=xtceschema.StringEncodingEnum.UTF8,
+            variable=xtceschema.VariableStringType(
+                maxSizeInBits=2048,
+                dynamicValue=xtceschema.DynamicValue(
+                    parameterInstanceRef=xtceschema.ParameterInstanceRef(parameterRef='str__size'),
+                ),
+            ),
+        )
+
+        for value in ["groundstation", "satellite", "a", "missile"]:
+            with self.subTest(value=value):
+                size_bits = len(value.encode('utf-8')) * 8
+                encoded = enc.encode(value, {'str__size': size_bits})
+                self.assertEqual(len(encoded), size_bits)
+                decoded = enc.decode(encoded)
+                self.assertEqual(decoded, value)
