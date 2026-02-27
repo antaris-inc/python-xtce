@@ -106,7 +106,7 @@ class BaseType(BaseModel):
 class Unit(BaseType):
     description: str = None
     power: float
-    factor: int
+    factor: str
     form: str
     value: str
 
