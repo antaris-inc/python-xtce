@@ -860,3 +860,86 @@ class TestStringDataEncodingEncodeWithParameters(unittest.TestCase):
                 self.assertEqual(len(encoded), size_bits)
                 decoded = enc.decode(encoded)
                 self.assertEqual(decoded, value)
+
+
+class TestFloatDataEncoding(unittest.TestCase):
+
+    def test_32bit_ieee754_1985_encode_decode(self):
+        """Test 32-bit IEEE754_1985 encode/decode."""
+        enc = xtceschema.FloatDataEncoding(
+            encoding=xtceschema.FloatEncodingEnum.IEEE754_1985,
+            sizeInBits=32,
+        )
+        encoded = enc.encode(3.14)
+        self.assertEqual(len(encoded), 32)
+        decoded = enc.decode(encoded)
+        self.assertAlmostEqual(decoded, 3.14, places=5)
+
+    def test_64bit_ieee754_1985_encode_decode(self):
+        """Test 64-bit IEEE754_1985 encode/decode."""
+        enc = xtceschema.FloatDataEncoding(
+            encoding=xtceschema.FloatEncodingEnum.IEEE754_1985,
+            sizeInBits=64,
+        )
+        encoded = enc.encode(3.141592653589793)
+        self.assertEqual(len(encoded), 64)
+        decoded = enc.decode(encoded)
+        self.assertAlmostEqual(decoded, 3.141592653589793, places=12)
+
+    def test_16bit_ieee754_encode_decode(self):
+        """Test 16-bit IEEE754 encode/decode."""
+        enc = xtceschema.FloatDataEncoding(
+            encoding=xtceschema.FloatEncodingEnum.IEEE754,
+            sizeInBits=16,
+        )
+        encoded = enc.encode(1.5)
+        self.assertEqual(len(encoded), 16)
+        decoded = enc.decode(encoded)
+        self.assertAlmostEqual(decoded, 1.5, places=2)
+
+    def test_default_encoding(self):
+        """Test default FloatDataEncoding (IEEE754_1985, 32-bit)."""
+        enc = xtceschema.FloatDataEncoding()
+        self.assertEqual(enc.encoding, xtceschema.FloatEncodingEnum.IEEE754_1985)
+        self.assertEqual(enc.sizeInBits, 32)
+        self.assertEqual(enc.size({}), 32)
+
+        encoded = enc.encode(1.0)
+        self.assertEqual(len(encoded), 32)
+        decoded = enc.decode(encoded)
+        self.assertAlmostEqual(decoded, 1.0, places=5)
+
+    def test_unsupported_size_raises(self):
+        """Test that unsupported sizeInBits raises ValueError."""
+        enc = xtceschema.FloatDataEncoding(sizeInBits=48)
+        with self.assertRaises(ValueError):
+            enc.encode(1.0)
+        with self.assertRaises(ValueError):
+            enc.decode(bitarray(48))
+
+    def test_size_method(self):
+        """Test size() returns sizeInBits."""
+        for bits in (16, 32, 64):
+            enc = xtceschema.FloatDataEncoding(sizeInBits=bits)
+            self.assertEqual(enc.size({}), bits)
+
+    def test_roundtrip_via_float_base_type(self):
+        """Test roundtrip through floatBaseType.data_encoding with explicit FloatDataEncoding."""
+        typ = xtceschema.floatBaseType(
+            name='test_float',
+            floatDataEncoding=xtceschema.FloatDataEncoding(sizeInBits=64),
+        )
+        encoded = typ.data_encoding.encode(2.718281828)
+        decoded = typ.data_encoding.decode(encoded)
+        self.assertAlmostEqual(decoded, 2.718281828, places=8)
+
+    def test_float_base_type_default_encoding(self):
+        """Test floatBaseType falls back to FloatDataEncoding with working defaults."""
+        typ = xtceschema.floatBaseType(name='test_default')
+        enc = typ.data_encoding
+        self.assertIsInstance(enc, xtceschema.FloatDataEncoding)
+        self.assertEqual(enc.size({}), 32)
+
+        encoded = enc.encode(42.0)
+        decoded = enc.decode(encoded)
+        self.assertAlmostEqual(decoded, 42.0, places=5)

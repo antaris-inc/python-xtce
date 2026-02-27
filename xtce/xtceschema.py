@@ -3,6 +3,7 @@ import functools
 import math
 import os
 import itertools
+import struct
 import typing
 
 from bitarray import bitarray
@@ -179,11 +180,20 @@ class SignedEnum(str, enum.Enum):
 
     #TODO(bcwaldon): not yet implemented
     signMagnitude = 'signMagnitude'
-    IEEE754_1985 = 'IEEE754_1985'
-    MILSTD_1750A = 'MILSTD_1750A'
     onesComplement = 'onesComplement'
     BCD = 'BCD'
     packedBCD = 'packedBCD'
+
+
+class FloatEncodingEnum(str, enum.Enum):
+    IEEE754_1985 = 'IEEE754_1985'
+    IEEE754 = 'IEEE754'
+
+    # Not yet implemented
+    MILSTD_1750A = 'MILSTD_1750A'
+    DEC = 'DEC'
+    IBM = 'IBM'
+    TI = 'TI'
 
 
 class Fixed(BaseType):
@@ -226,11 +236,39 @@ class VariableStringType(BaseType):
 
 
 class FloatDataEncoding(BaseType):
-    encoding: SignedEnum = SignedEnum.unsigned
-    sizeInBits: int = 8
+    encoding: FloatEncodingEnum = FloatEncodingEnum.IEEE754_1985
+    sizeInBits: int = 32
     changeThreshold: float = None
 
-    #NOTE(bcwaldon): not implemented yet
+    _STRUCT_FORMATS = {
+        16: '>e',
+        32: '>f',
+        64: '>d',
+    }
+
+    def _get_format(self) -> str:
+        if self.encoding not in (FloatEncodingEnum.IEEE754_1985, FloatEncodingEnum.IEEE754):
+            raise ValueError(f'unsupported float encoding: {self.encoding}')
+        fmt = self._STRUCT_FORMATS.get(self.sizeInBits)
+        if fmt is None:
+            raise ValueError(f'unsupported float sizeInBits: {self.sizeInBits} (must be 16, 32, or 64)')
+        return fmt
+
+    def encode(self, value: float) -> bitarray:
+        fmt = self._get_format()
+        encoded_bytes = struct.pack(fmt, value)
+        result = bitarray()
+        result.frombytes(encoded_bytes)
+        return result
+
+    def decode(self, value: bitarray) -> float:
+        fmt = self._get_format()
+        padded = _pad_bits(value)
+        result = struct.unpack(fmt, padded.tobytes())[0]
+        return result
+
+    def size(self, parameters) -> int:
+        return self.sizeInBits
 
 
 class IntegerDataEncoding(BaseType):
