@@ -17,6 +17,24 @@ class TestLoad(unittest.TestCase):
             xtceschema.from_bytes(f.read())
 
 
+class TestTelemetryOnlyFile(unittest.TestCase):
+    loc = os.path.join(_DIR, './telemetry.xml')
+
+    def test_Message(self):
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        tm = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Message'),
+            entries={
+                'MessageType': 0x10,
+            },
+        )
+        got = enc.encode(tm)
+        self.assertTrue(got)
+
+
 class TestCCSDS_660x1g2(unittest.TestCase):
     loc = os.path.join(_DIR, './ccsds_660x1g2.xml')
 

@@ -1,0 +1,22 @@
+<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/spec/XTCE/20250214" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="unittest">
+	<xtce:Header validationStatus="Validated" date="2019-04-04"	version="0.2"/>
+	<xtce:TelemetryMetaData>
+
+		<xtce:ParameterTypeSet>
+			<xtce:IntegerParameterType signed="false" name="MessageType"/>
+		</xtce:ParameterTypeSet>
+
+		<xtce:ParameterSet>
+			<xtce:Parameter parameterTypeRef="MessageType" name="MessageType" />
+		</xtce:ParameterSet>
+
+		<xtce:ContainerSet>
+			<xtce:SequenceContainer abstract="true" name="Message">
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="MessageType"/>
+				</xtce:EntryList>
+			</xtce:SequenceContainer>
+		</xtce:ContainerSet>
+
+	</xtce:TelemetryMetaData>
+</xtce:SpaceSystem>
