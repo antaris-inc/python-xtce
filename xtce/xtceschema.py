@@ -1061,15 +1061,17 @@ class SpaceSystem(BaseType):
     longDescription: str = ''
     header: str = ''
     telemetryMetaData: TelemetryMetaData = None
-    commandMetaData: CommandMetaData = None
+    commandMetaData: CommandMetaData  = None
     spaceSystem: list['SpaceSystem'] = None
 
     @functools.cached_property
     def _type_idx(self):
-        parameter_type_sets = (
-            self.telemetryMetaData.parameterTypeSet,
-            self.commandMetaData.parameterTypeSet,
-        )
+        parameter_type_sets = [
+            self.telemetryMetaData.parameterTypeSet or [],
+        ]
+        if self.commandMetaData:
+            parameter_type_sets.append(self.commandMetaData.parameterTypeSet or [])
+
         objs = list(itertools.chain(
             *[
                 itertools.chain(
@@ -1083,12 +1085,17 @@ class SpaceSystem(BaseType):
                     ts.stringParameterType or [],
                 ) for ts in parameter_type_sets if ts
             ],
-            self.commandMetaData.argumentTypeSet.integerArgumentType or [],
-            self.commandMetaData.argumentTypeSet.enumeratedArgumentType or [],
-            self.commandMetaData.argumentTypeSet.booleanArgumentType or [],
-            self.commandMetaData.argumentTypeSet.stringArgumentType or [],
-            self.commandMetaData.argumentTypeSet.arrayArgumentType or [],
         ))
+
+        if self.commandMetaData:
+            objs.extend(list(itertools.chain(
+                self.commandMetaData.argumentTypeSet.integerArgumentType or [],
+                self.commandMetaData.argumentTypeSet.enumeratedArgumentType or [],
+                self.commandMetaData.argumentTypeSet.booleanArgumentType or [],
+                self.commandMetaData.argumentTypeSet.stringArgumentType or [],
+                self.commandMetaData.argumentTypeSet.arrayArgumentType or [],
+            )))
+
         return dict([(o.name, o) for o in objs])
 
     def get_entry_type(self, name):
@@ -1114,7 +1121,7 @@ class SpaceSystem(BaseType):
     def get_parameter(self, name):
         paramsets = (
                 self.telemetryMetaData.parameterSet,
-                self.commandMetaData.parameterSet,
+                self.commandMetaData.parameterSet if self.commandMetaData else [],
         )
         objs = itertools.chain(*[ps.parameter for ps in paramsets if ps])
         idx = dict([(o.name, o) for o in objs])
