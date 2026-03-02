@@ -1,6 +1,6 @@
 [project]
 name = "xtce"
-version = "0.13.1"
+version = "0.13.2"
 dependencies = [
 	"bitarray",
 	"pydantic",
