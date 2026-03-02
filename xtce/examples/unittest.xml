@@ -222,6 +222,27 @@
 				</xtce:BaseContainer>
 			</xtce:SequenceContainer>
 
+			<!-- SequenceContainer with ContainerRefEntry (no IncludeCondition) -->
+			<xtce:SequenceContainer name="EmbeddedNonce">
+				<xtce:EntryList>
+					<xtce:ParameterRefEntry parameterRef="Nonce"/>
+				</xtce:EntryList>
+			</xtce:SequenceContainer>
+
+			<xtce:SequenceContainer abstract="false" name="Reply_WithEmbeddedContainer">
+				<xtce:EntryList>
+					<xtce:ContainerRefEntry containerRef="EmbeddedNonce"/>
+					<xtce:ParameterRefEntry parameterRef="StatusMessage"/>
+				</xtce:EntryList>
+				<xtce:BaseContainer containerRef="ReplyMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:ComparisonList>
+								<xtce:Comparison parameterRef="MessageID" value="90"/>
+							</xtce:ComparisonList>
+						</xtce:RestrictionCriteria>
+				</xtce:BaseContainer>
+			</xtce:SequenceContainer>
+
 		</xtce:ContainerSet>
 
 	</xtce:TelemetryMetaData>

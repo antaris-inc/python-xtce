@@ -1034,3 +1034,28 @@ class TestUnittest(unittest.TestCase):
         )
 
         self.assertEqual(want, got)
+
+    def test_encode_container_ref_entry_without_condition(self):
+        """Test encoding a SequenceContainer with ContainerRefEntry that has no IncludeCondition."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        tm = xtcemsg.Message(
+            message_type=ss.get_sequence_container('Reply_WithEmbeddedContainer'),
+            entries={
+                'MessageType': 2,
+                'MessageDestination': 11,
+                'MessageSource': 32,
+                'MessageID': 90,
+                'Nonce': 0xAB,
+                'StatusMessage': 'OK',
+            },
+        )
+
+        got = enc.encode(tm)
+        # MessageType=2, Dest=11, Src=32, ID=90, Nonce=0xAB, StatusMessage='OK' (8 bytes UTF-8 padded)
+        want = bitarray(bytes([2, 11, 32, 90, 0xAB, ord('O'), ord('K'), 0, 0, 0, 0, 0, 0]))
+
+        self.assertEqual(want, got)
+

@@ -63,10 +63,10 @@ class SpaceSystemEncoder:
                         if isinstance(ent, xtceschema.ContainerRefEntry):
                             embedded_con = self.space_system.get_sequence_container(ent.containerRef)
                             embedded_plan, embedded_restrictions = self._build_entry_plan(embedded_con)
-                            new_conditions = list(ent.includeCondition.comparison)
+                            new_conditions = list(ent.includeCondition.comparison) if ent.includeCondition else []
                             for embedded_entry, embedded_conditions in embedded_plan:
                                 include_conditions = new_conditions + list(embedded_conditions or [])
-                                new_plan.append((embedded_entry, include_conditions))
+                                new_plan.append((embedded_entry, include_conditions or None))
                                 new_restrictions = new_restrictions + embedded_restrictions
                         else:
                             new_plan.append((ent, None))
