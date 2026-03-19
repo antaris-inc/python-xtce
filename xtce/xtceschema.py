@@ -1229,7 +1229,8 @@ class SpaceSystem(BaseType):
 
         match = []
         match.extend([sc for sc in self.telemetryMetaData.containerSet.sequenceContainer if sc.baseContainer and sc.baseContainer.containerRef == match_container_ref])
-        match.extend([mc for mc in self.commandMetaData.metaCommandSet.metaCommand if mc.commandContainer.baseContainer and mc.commandContainer.baseContainer.containerRef == match_container_ref])
+        if self.commandMetaData:
+            match.extend([mc for mc in self.commandMetaData.metaCommandSet.metaCommand if mc.commandContainer.baseContainer and mc.commandContainer.baseContainer.containerRef == match_container_ref])
 
         return match
 
