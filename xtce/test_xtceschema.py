@@ -943,3 +943,62 @@ class TestFloatDataEncoding(unittest.TestCase):
         encoded = enc.encode(42.0)
         decoded = enc.decode(encoded)
         self.assertAlmostEqual(decoded, 42.0, places=5)
+
+
+class TestGetContainerWithoutCommandMetaData(unittest.TestCase):
+    """Regression test: get_container/find_inheritors must work when commandMetaData is None."""
+
+    TELEMETRY_ONLY_XTCE = b'''\
+<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/spec/XTCE/20250214" name="TelemetryOnly">
+  <xtce:Header validationStatus="Draft" date="2026-01-01" version="0.1"/>
+  <xtce:TelemetryMetaData>
+    <xtce:ParameterTypeSet>
+      <xtce:IntegerParameterType name="uint8" signed="false">
+        <xtce:IntegerDataEncoding sizeInBits="8" encoding="unsigned"/>
+      </xtce:IntegerParameterType>
+    </xtce:ParameterTypeSet>
+    <xtce:ParameterSet>
+      <xtce:Parameter parameterTypeRef="uint8" name="test_param"/>
+      <xtce:Parameter parameterTypeRef="uint8" name="child_param"/>
+    </xtce:ParameterSet>
+    <xtce:ContainerSet>
+      <xtce:SequenceContainer name="TestContainer">
+        <xtce:EntryList>
+          <xtce:ParameterRefEntry parameterRef="test_param"/>
+        </xtce:EntryList>
+      </xtce:SequenceContainer>
+      <xtce:SequenceContainer name="ChildContainer">
+        <xtce:EntryList>
+          <xtce:ParameterRefEntry parameterRef="child_param"/>
+        </xtce:EntryList>
+        <xtce:BaseContainer containerRef="TestContainer"/>
+      </xtce:SequenceContainer>
+    </xtce:ContainerSet>
+  </xtce:TelemetryMetaData>
+</xtce:SpaceSystem>'''
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ss = xtceschema.from_bytes(cls.TELEMETRY_ONLY_XTCE)
+
+    def test_command_meta_data_is_none(self):
+        self.assertIsNone(self.ss.commandMetaData)
+
+    def test_get_container_returns_sequence_container(self):
+        container = self.ss.get_container('TestContainer')
+        self.assertEqual(container.name, 'TestContainer')
+
+    def test_get_container_raises_on_unknown(self):
+        with self.assertRaises(ValueError):
+            self.ss.get_container('NonExistent')
+
+    def test_find_inheritors_returns_child(self):
+        base = self.ss.get_sequence_container('TestContainer')
+        inheritors = self.ss.find_inheritors(base)
+        self.assertEqual(len(inheritors), 1)
+        self.assertEqual(inheritors[0].name, 'ChildContainer')
+
+    def test_find_inheritors_returns_empty_for_leaf(self):
+        leaf = self.ss.get_sequence_container('ChildContainer')
+        inheritors = self.ss.find_inheritors(leaf)
+        self.assertEqual(inheritors, [])

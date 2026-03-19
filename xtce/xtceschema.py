@@ -1146,10 +1146,16 @@ class SpaceSystem(BaseType):
 
     # retrieve a CommandContainer or SequenceContainer by name
     def get_container(self, name):
+        if self.commandMetaData:
+            command_containers = [c.commandContainer for c in itertools.chain(self.commandMetaData.metaCommandSet.metaCommand)]
+        else:
+            command_containers = []
+
         objs = itertools.chain(
-            [c.commandContainer for c in itertools.chain(self.commandMetaData.metaCommandSet.metaCommand)],
+            command_containers,
             self.telemetryMetaData.containerSet.sequenceContainer,
         )
+
         idx = dict([(o.name, o) for o in objs])
         try:
             return idx[name]
@@ -1165,7 +1171,8 @@ class SpaceSystem(BaseType):
 
         match = []
         match.extend([sc for sc in self.telemetryMetaData.containerSet.sequenceContainer if sc.baseContainer and sc.baseContainer.containerRef == match_container_ref])
-        match.extend([mc for mc in self.commandMetaData.metaCommandSet.metaCommand if mc.commandContainer.baseContainer and mc.commandContainer.baseContainer.containerRef == match_container_ref])
+        if self.commandMetaData:
+            match.extend([mc for mc in self.commandMetaData.metaCommandSet.metaCommand if mc.commandContainer.baseContainer and mc.commandContainer.baseContainer.containerRef == match_container_ref])
 
         return match
 
