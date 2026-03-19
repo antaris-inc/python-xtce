@@ -943,3 +943,198 @@ class TestFloatDataEncoding(unittest.TestCase):
         encoded = enc.encode(42.0)
         decoded = enc.decode(encoded)
         self.assertAlmostEqual(decoded, 42.0, places=5)
+
+
+class TestFloatRange(unittest.TestCase):
+
+    def test_all_bounds(self):
+        r = xtceschema.FloatRange(minInclusive=-5.0, maxInclusive=5.0)
+        self.assertEqual(r.minInclusive, -5.0)
+        self.assertEqual(r.maxInclusive, 5.0)
+        self.assertIsNone(r.minExclusive)
+        self.assertIsNone(r.maxExclusive)
+
+    def test_one_sided(self):
+        r = xtceschema.FloatRange(minInclusive=30.5)
+        self.assertEqual(r.minInclusive, 30.5)
+        self.assertIsNone(r.maxInclusive)
+
+    def test_exclusive_bounds(self):
+        r = xtceschema.FloatRange(minExclusive=1.0, maxExclusive=10.0)
+        self.assertEqual(r.minExclusive, 1.0)
+        self.assertEqual(r.maxExclusive, 10.0)
+        self.assertIsNone(r.minInclusive)
+        self.assertIsNone(r.maxInclusive)
+
+
+class TestStaticAlarmRanges(unittest.TestCase):
+
+    def test_all_levels(self):
+        sar = xtceschema.StaticAlarmRanges(
+            watchRange=xtceschema.FloatRange(minInclusive=-5.0, maxInclusive=5.0),
+            warningRange=xtceschema.FloatRange(minInclusive=-6.0, maxInclusive=6.0),
+            criticalRange=xtceschema.FloatRange(minInclusive=-10.0, maxInclusive=10.0),
+            severeRange=xtceschema.FloatRange(minInclusive=-7.0, maxInclusive=7.0),
+        )
+        self.assertEqual(sar.watchRange.minInclusive, -5.0)
+        self.assertEqual(sar.warningRange.maxInclusive, 6.0)
+        self.assertEqual(sar.criticalRange.minInclusive, -10.0)
+        self.assertEqual(sar.severeRange.maxInclusive, 7.0)
+        self.assertIsNone(sar.distressRange)
+
+    def test_partial_levels(self):
+        sar = xtceschema.StaticAlarmRanges(
+            warningRange=xtceschema.FloatRange(minInclusive=30.0),
+        )
+        self.assertIsNone(sar.watchRange)
+        self.assertEqual(sar.warningRange.minInclusive, 30.0)
+
+
+class TestAlarmConditions(unittest.TestCase):
+
+    def test_with_boolean_expression(self):
+        cond1 = xtceschema.Condition(
+            parameterInstanceRef=xtceschema.ParameterInstanceRef(parameterRef='param_x'),
+            comparisonOperator='<',
+            value='-5.0',
+        )
+        cond2 = xtceschema.Condition(
+            parameterInstanceRef=xtceschema.ParameterInstanceRef(parameterRef='param_x'),
+            comparisonOperator='>',
+            value='5.0',
+        )
+        ored = xtceschema.ORedConditions(condition=[cond1, cond2])
+        anded = xtceschema.ANDedConditions(oRedConditions=[ored])
+        bexpr = xtceschema.BooleanExpression(aNDedConditions=anded)
+        mc = xtceschema.MatchCriteria(booleanExpression=bexpr)
+        ac = xtceschema.AlarmConditions(watchAlarm=mc)
+
+        self.assertIsNotNone(ac.watchAlarm)
+        self.assertIsNone(ac.warningAlarm)
+        be = ac.watchAlarm.booleanExpression
+        self.assertEqual(len(be.aNDedConditions.oRedConditions), 1)
+        self.assertEqual(len(be.aNDedConditions.oRedConditions[0].condition), 2)
+        self.assertEqual(be.aNDedConditions.oRedConditions[0].condition[0].value, '-5.0')
+
+
+class TestNumericAlarm(unittest.TestCase):
+
+    def test_with_static_ranges(self):
+        alarm = xtceschema.NumericAlarm(
+            staticAlarmRanges=xtceschema.StaticAlarmRanges(
+                watchRange=xtceschema.FloatRange(minInclusive=-5.0, maxInclusive=5.0),
+            ),
+        )
+        self.assertIsNotNone(alarm.staticAlarmRanges)
+        self.assertIsNone(alarm.alarmConditions)
+
+    def test_with_alarm_conditions(self):
+        alarm = xtceschema.NumericAlarm(
+            alarmConditions=xtceschema.AlarmConditions(
+                watchAlarm=xtceschema.MatchCriteria(
+                    booleanExpression=xtceschema.BooleanExpression(
+                        condition=xtceschema.Condition(
+                            parameterInstanceRef=xtceschema.ParameterInstanceRef(parameterRef='p'),
+                            comparisonOperator='>',
+                            value='10',
+                        ),
+                    ),
+                ),
+            ),
+        )
+        self.assertIsNone(alarm.staticAlarmRanges)
+        self.assertIsNotNone(alarm.alarmConditions)
+
+    def test_on_float_parameter_type(self):
+        fpt = xtceschema.FloatParameterType(
+            name='test',
+            defaultAlarm=xtceschema.NumericAlarm(
+                staticAlarmRanges=xtceschema.StaticAlarmRanges(
+                    warningRange=xtceschema.FloatRange(minInclusive=0.0, maxInclusive=100.0),
+                ),
+            ),
+        )
+        self.assertIsNotNone(fpt.defaultAlarm)
+        self.assertEqual(fpt.defaultAlarm.staticAlarmRanges.warningRange.maxInclusive, 100.0)
+
+    def test_on_integer_parameter_type(self):
+        ipt = xtceschema.IntegerParameterType(
+            name='test',
+            defaultAlarm=xtceschema.NumericAlarm(
+                staticAlarmRanges=xtceschema.StaticAlarmRanges(
+                    criticalRange=xtceschema.FloatRange(minInclusive=-50.0, maxInclusive=50.0),
+                ),
+            ),
+        )
+        self.assertIsNotNone(ipt.defaultAlarm)
+        self.assertEqual(ipt.defaultAlarm.staticAlarmRanges.criticalRange.minInclusive, -50.0)
+
+
+class TestAlarmXMLParsing(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        xml_path = os.path.join(os.path.dirname(__file__),
+            '..', 'xtce_c1db6124-8f44-4f79-9deb-79e40540dbff.xml')
+        cls.ss = xtceschema.from_file(xml_path)
+
+    def test_static_alarm_ranges_both_bounds(self):
+        et = self.ss.get_entry_type('float64_alarmed__RepGetSatelliteState__est_rate_x')
+        self.assertIsInstance(et, xtceschema.FloatParameterType)
+        alarm = et.defaultAlarm
+        self.assertIsNotNone(alarm)
+        self.assertIsNotNone(alarm.staticAlarmRanges)
+        self.assertIsNone(alarm.alarmConditions)
+
+        sar = alarm.staticAlarmRanges
+        self.assertEqual(sar.watchRange.minInclusive, -5.0)
+        self.assertEqual(sar.watchRange.maxInclusive, 5.0)
+        self.assertEqual(sar.warningRange.minInclusive, -6.0)
+        self.assertEqual(sar.warningRange.maxInclusive, 6.0)
+        self.assertEqual(sar.criticalRange.minInclusive, -10.0)
+        self.assertEqual(sar.criticalRange.maxInclusive, 10.0)
+        self.assertEqual(sar.severeRange.minInclusive, -7.0)
+        self.assertEqual(sar.severeRange.maxInclusive, 7.0)
+
+    def test_static_alarm_ranges_one_sided(self):
+        et = self.ss.get_entry_type('float64_alarmed__RepGetSatelliteState__eps_battery_voltage')
+        alarm = et.defaultAlarm
+        sar = alarm.staticAlarmRanges
+        self.assertEqual(sar.watchRange.minInclusive, 30.5)
+        self.assertIsNone(sar.watchRange.maxInclusive)
+        self.assertEqual(sar.warningRange.minInclusive, 30.0)
+        self.assertEqual(sar.criticalRange.minInclusive, 28.0)
+        self.assertEqual(sar.severeRange.minInclusive, 26.0)
+
+    def test_alarm_conditions_structure(self):
+        et = self.ss.get_entry_type('float64_alarmed__RepGetSatelliteState__est_rate_combined')
+        alarm = et.defaultAlarm
+        self.assertIsNone(alarm.staticAlarmRanges)
+        self.assertIsNotNone(alarm.alarmConditions)
+
+        ac = alarm.alarmConditions
+        for level in ('watchAlarm', 'warningAlarm', 'criticalAlarm', 'severeAlarm'):
+            mc = getattr(ac, level)
+            self.assertIsNotNone(mc, f'{level} should be present')
+            self.assertIsNotNone(mc.booleanExpression, f'{level} should have booleanExpression')
+            be = mc.booleanExpression
+            self.assertIsNotNone(be.aNDedConditions)
+            self.assertEqual(len(be.aNDedConditions.oRedConditions), 3)
+
+    def test_alarm_condition_values(self):
+        et = self.ss.get_entry_type('float64_alarmed__RepGetSatelliteState__est_rate_combined')
+        ac = et.defaultAlarm.alarmConditions
+        be = ac.watchAlarm.booleanExpression
+        first_or = be.aNDedConditions.oRedConditions[0]
+        self.assertEqual(len(first_or.condition), 2)
+        self.assertEqual(first_or.condition[0].parameterInstanceRef.parameterRef,
+                         'RepGetSatelliteState__est_rate_x')
+        self.assertEqual(first_or.condition[0].comparisonOperator, '<')
+        self.assertEqual(first_or.condition[0].value, '-5.0')
+        self.assertEqual(first_or.condition[1].comparisonOperator, '>')
+        self.assertEqual(first_or.condition[1].value, '5.0')
+
+    def test_no_alarm_on_regular_type(self):
+        et = self.ss.get_entry_type('uint8')
+        self.assertIsInstance(et, xtceschema.integerBaseType)
+        self.assertIsNone(et.defaultAlarm)

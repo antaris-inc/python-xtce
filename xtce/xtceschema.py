@@ -355,6 +355,62 @@ class ValidRange(BaseType):
     maxInclusive: float
 
 
+# Alarm range type used for individual severity levels (Watch, Warning, etc.)
+class FloatRange(BaseType):
+    minInclusive: float = None
+    maxInclusive: float = None
+    minExclusive: float = None
+    maxExclusive: float = None
+
+
+class StaticAlarmRanges(BaseType):
+    watchRange: FloatRange = None
+    warningRange: FloatRange = None
+    distressRange: FloatRange = None
+    criticalRange: FloatRange = None
+    severeRange: FloatRange = None
+
+
+# Alarm condition types for expression-based alarms
+class Condition(BaseType):
+    parameterInstanceRef: ParameterInstanceRef = None
+    comparisonOperator: str = None
+    value: str = None
+
+
+class ORedConditions(BaseType):
+    condition: list[Condition] = None
+
+
+class ANDedConditions(BaseType):
+    condition: list[Condition] = None
+    oRedConditions: list[ORedConditions] = None
+
+
+class BooleanExpression(BaseType):
+    condition: Condition = None
+    aNDedConditions: ANDedConditions = None
+    oRedConditions: ORedConditions = None
+
+
+class MatchCriteria(BaseType):
+    booleanExpression: BooleanExpression = None
+
+
+class AlarmConditions(BaseType):
+    watchAlarm: MatchCriteria = None
+    warningAlarm: MatchCriteria = None
+    distressAlarm: MatchCriteria = None
+    criticalAlarm: MatchCriteria = None
+    severeAlarm: MatchCriteria = None
+
+
+class NumericAlarm(BaseType):
+    minViolations: int = None
+    staticAlarmRanges: StaticAlarmRanges = None
+    alarmConditions: AlarmConditions = None
+
+
 class integerBaseType(BaseType):
     name: str
     shortDescription: str = None
@@ -367,6 +423,7 @@ class integerBaseType(BaseType):
 
     integerDataEncoding: IntegerDataEncoding = None
     validRange: ValidRange = None
+    defaultAlarm: NumericAlarm = None
 
     @property
     def data_encoding(self):
@@ -394,6 +451,7 @@ class floatBaseType(BaseType):
 
     integerDataEncoding: IntegerDataEncoding = None
     floatDataEncoding: FloatDataEncoding = None
+    defaultAlarm: NumericAlarm = None
 
     @property
     def data_encoding(self):
@@ -1146,10 +1204,16 @@ class SpaceSystem(BaseType):
 
     # retrieve a CommandContainer or SequenceContainer by name
     def get_container(self, name):
+        if self.commandMetaData:
+            command_containers = [c.commandContainer for c in itertools.chain(self.commandMetaData.metaCommandSet.metaCommand)]
+        else:
+            command_containers = []
+
         objs = itertools.chain(
-            [c.commandContainer for c in itertools.chain(self.commandMetaData.metaCommandSet.metaCommand)],
+            command_containers,
             self.telemetryMetaData.containerSet.sequenceContainer,
         )
+
         idx = dict([(o.name, o) for o in objs])
         try:
             return idx[name]
