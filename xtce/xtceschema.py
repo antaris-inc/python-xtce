@@ -631,6 +631,19 @@ class BinaryParameterType(BaseType):
         return self.binaryDataEncoding
 
 
+class BinaryArgumentType(BaseType):
+    name: str
+    longDescription: str = None
+
+    binaryDataEncoding: BinaryDataEncoding
+
+    @property
+    def data_encoding(self):
+        if not self.binaryDataEncoding:
+            raise ValueError('BinaryDataEncoding not defined')
+        return self.binaryDataEncoding
+
+
 class FixedValue(BaseType):
     value: int
 
@@ -1039,6 +1052,7 @@ class ArgumentTypeSet(BaseType):
     floatArgumentType: list[FloatArgumentType] = None
     absoluteTimeArgumentType: list[AbsoluteTimeArgumentType] = None
     enumeratedArgumentType: list[EnumeratedArgumentType] = None
+    binaryArgumentType: list[BinaryArgumentType] = None
     booleanArgumentType: list[BooleanArgumentType] = None
     stringArgumentType: list[StringArgumentType] = None
     arrayArgumentType: list[ArrayArgumentType] = None
@@ -1087,10 +1101,13 @@ class SpaceSystem(BaseType):
             ],
         ))
 
-        if self.commandMetaData:
+        if self.commandMetaData and self.commandMetaData.argumentTypeSet:
             objs.extend(list(itertools.chain(
                 self.commandMetaData.argumentTypeSet.integerArgumentType or [],
+                self.commandMetaData.argumentTypeSet.floatArgumentType or [],
+                self.commandMetaData.argumentTypeSet.absoluteTimeArgumentType or [],
                 self.commandMetaData.argumentTypeSet.enumeratedArgumentType or [],
+                self.commandMetaData.argumentTypeSet.binaryArgumentType or [],
                 self.commandMetaData.argumentTypeSet.booleanArgumentType or [],
                 self.commandMetaData.argumentTypeSet.stringArgumentType or [],
                 self.commandMetaData.argumentTypeSet.arrayArgumentType or [],

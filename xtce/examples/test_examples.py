@@ -1,4 +1,5 @@
 import os
+import struct
 import unittest
 
 from bitarray import bitarray
@@ -1059,3 +1060,91 @@ class TestUnittest(unittest.TestCase):
 
         self.assertEqual(want, got)
 
+
+    def test_encode_float_argument(self):
+        """Test encoding a command with a FloatArgumentType."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SetFloat'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'Temperature': 3.14,
+            }
+        )
+
+        got = enc.encode(cmd)
+        # MessageType=1, Dest=11, Src=32, ID=87, Intermediate=50, Temperature=3.14 (32-bit IEEE-754)
+        temp_bytes = struct.pack('>f', 3.14)
+        want = bitarray(bytes([1, 11, 32, 87, 50]) + temp_bytes)
+
+        self.assertEqual(want, got)
+
+    def test_float_argument_roundtrip(self):
+        """Test encode then decode roundtrip with a FloatArgumentType."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SetFloat'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'Temperature': 3.14,
+            }
+        )
+
+        encoded = enc.encode(cmd)
+        decoded = enc.decode(cmd.message_type, encoded)
+
+        self.assertAlmostEqual(cmd.entries['Temperature'], decoded.entries['Temperature'], places=5)
+
+    def test_encode_binary_argument(self):
+        """Test encoding a command with a BinaryArgumentType."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendBlob'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'Payload': bitarray(bytes([0xDE, 0xAD, 0xBE, 0xEF])),
+            }
+        )
+
+        got = enc.encode(cmd)
+        # MessageType=1, Dest=11, Src=32, ID=86, Intermediate=50, Payload=DEADBEEF
+        want = bitarray(bytes([1, 11, 32, 86, 50, 0xDE, 0xAD, 0xBE, 0xEF]))
+
+        self.assertEqual(want, got)
+
+    def test_binary_argument_roundtrip(self):
+        """Test encode then decode roundtrip with a BinaryArgumentType."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        payload_bits = bitarray(bytes([0xDE, 0xAD, 0xBE, 0xEF]))
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendBlob'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'Payload': payload_bits,
+            }
+        )
+
+        encoded = enc.encode(cmd)
+        decoded = enc.decode(cmd.message_type, encoded)
+
+        self.assertEqual(payload_bits, decoded.entries['Payload'])

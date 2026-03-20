@@ -249,6 +249,16 @@
 	<xtce:CommandMetaData>
 		<xtce:ArgumentTypeSet>
 			<xtce:IntegerArgumentType name="AnyByte"/>
+			<xtce:FloatArgumentType name="FloatValue" sizeInBits="32">
+				<xtce:FloatDataEncoding sizeInBits="32" encoding="IEEE754"/>
+			</xtce:FloatArgumentType>
+			<xtce:BinaryArgumentType name="BinaryBlob">
+				<xtce:BinaryDataEncoding>
+					<xtce:SizeInBits>
+						<xtce:FixedValue>32</xtce:FixedValue>
+					</xtce:SizeInBits>
+				</xtce:BinaryDataEncoding>
+			</xtce:BinaryArgumentType>
 			<xtce:BooleanArgumentType name="EnableFlag" zeroStringValue="OFF" oneStringValue="ON">
 				<xtce:IntegerDataEncoding sizeInBits="8" encoding="unsigned"/>
 			</xtce:BooleanArgumentType>
@@ -431,6 +441,40 @@
 					<xtce:BaseContainer containerRef="CommandMessageBase">
 						<xtce:RestrictionCriteria>
 							<xtce:Comparison  parameterRef="MessageID" value="88"/>
+						</xtce:RestrictionCriteria>
+					</xtce:BaseContainer>
+				</xtce:CommandContainer>
+			</xtce:MetaCommand>
+
+			<xtce:MetaCommand abstract="false" name="Command_SetFloat">
+				<xtce:BaseMetaCommand metaCommandRef="CommandMessageBase"/>
+				<xtce:ArgumentList>
+					<xtce:Argument argumentTypeRef="FloatValue" name="Temperature"/>
+				</xtce:ArgumentList>
+				<xtce:CommandContainer name="Command_SetFloat">
+					<xtce:EntryList>
+						<xtce:ArgumentRefEntry argumentRef="Temperature"/>
+					</xtce:EntryList>
+					<xtce:BaseContainer containerRef="CommandMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:Comparison  parameterRef="MessageID" value="87"/>
+						</xtce:RestrictionCriteria>
+					</xtce:BaseContainer>
+				</xtce:CommandContainer>
+			</xtce:MetaCommand>
+
+			<xtce:MetaCommand abstract="false" name="Command_SendBlob">
+				<xtce:BaseMetaCommand metaCommandRef="CommandMessageBase"/>
+				<xtce:ArgumentList>
+					<xtce:Argument argumentTypeRef="BinaryBlob" name="Payload"/>
+				</xtce:ArgumentList>
+				<xtce:CommandContainer name="Command_SendBlob">
+					<xtce:EntryList>
+						<xtce:ArgumentRefEntry argumentRef="Payload"/>
+					</xtce:EntryList>
+					<xtce:BaseContainer containerRef="CommandMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:Comparison  parameterRef="MessageID" value="86"/>
 						</xtce:RestrictionCriteria>
 					</xtce:BaseContainer>
 				</xtce:CommandContainer>
