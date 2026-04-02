@@ -38,7 +38,7 @@ Types available in `ArgumentTypeSet`:
 | AbsoluteTimeArgumentType | Yes | Partial: same limitations as AbsoluteTimeParameterType |
 | ArrayArgumentType | Yes | Single-dimension, fixed and dynamic sizing |
 | StringArgumentType | No | |
-| BinaryArgumentType | No | |
+| BinaryArgumentType | Yes | Fixed and dynamic size |
 | RelativeTimeArgumentType | No | |
 | AggregateArgumentType | No | |
 

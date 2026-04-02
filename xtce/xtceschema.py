@@ -606,16 +606,21 @@ class BinaryDataEncoding(BaseType):
         if self.sizeInBits.fixed:
             return self.sizeInBits.fixed.fixedValue
 
-        try:
-            ref = self.sizeInBits.dynamicValue.parameterInstanceRef.parameterRef
-            ref_value = parameters[ref]
-        except:
-            raise Exception('failed to retrieve dynamic value parameter')
+        if self.sizeInBits.dynamicValue:
+            if self.sizeInBits.dynamicValue.argumentInstanceRef:
+                ref = self.sizeInBits.dynamicValue.argumentInstanceRef.argumentRef
+            elif self.sizeInBits.dynamicValue.parameterInstanceRef:
+                ref = self.sizeInBits.dynamicValue.parameterInstanceRef.parameterRef
+            else:
+                raise ValueError('dynamicValue has no reference')
+            ref_value = parameters.get(ref)
+            if ref_value is None:
+                raise ValueError(f'dynamic value reference {ref} not found')
+            assert isinstance(ref_value, int), 'dynamic value parameter must be integer'
+            assert ref_value > 0, 'dynamic value parameter must be greater than zero'
+            return ref_value
 
-        assert isinstance(ref_value, int), 'dynamic value parameter must be integer'
-        assert ref_value > 0,  'dynamic value parameter must be greater than zero'
-
-        return ref_value
+        raise ValueError('unable to determine binary data size')
 
 
 class BinaryParameterType(BaseType):

@@ -259,6 +259,15 @@
 					</xtce:SizeInBits>
 				</xtce:BinaryDataEncoding>
 			</xtce:BinaryArgumentType>
+			<xtce:BinaryArgumentType name="DynamicBinaryBlob">
+				<xtce:BinaryDataEncoding>
+					<xtce:SizeInBits>
+						<xtce:DynamicValue>
+							<xtce:ArgumentInstanceRef argumentRef="PayloadSize"/>
+						</xtce:DynamicValue>
+					</xtce:SizeInBits>
+				</xtce:BinaryDataEncoding>
+			</xtce:BinaryArgumentType>
 			<xtce:BooleanArgumentType name="EnableFlag" zeroStringValue="OFF" oneStringValue="ON">
 				<xtce:IntegerDataEncoding sizeInBits="8" encoding="unsigned"/>
 			</xtce:BooleanArgumentType>
@@ -475,6 +484,25 @@
 					<xtce:BaseContainer containerRef="CommandMessageBase">
 						<xtce:RestrictionCriteria>
 							<xtce:Comparison  parameterRef="MessageID" value="86"/>
+						</xtce:RestrictionCriteria>
+					</xtce:BaseContainer>
+				</xtce:CommandContainer>
+			</xtce:MetaCommand>
+
+			<xtce:MetaCommand abstract="false" name="Command_SendDynamicBlob">
+				<xtce:BaseMetaCommand metaCommandRef="CommandMessageBase"/>
+				<xtce:ArgumentList>
+					<xtce:Argument argumentTypeRef="AnyByte" name="PayloadSize"/>
+					<xtce:Argument argumentTypeRef="DynamicBinaryBlob" name="Payload"/>
+				</xtce:ArgumentList>
+				<xtce:CommandContainer name="Command_SendDynamicBlob">
+					<xtce:EntryList>
+						<xtce:ArgumentRefEntry argumentRef="PayloadSize"/>
+						<xtce:ArgumentRefEntry argumentRef="Payload"/>
+					</xtce:EntryList>
+					<xtce:BaseContainer containerRef="CommandMessageBase">
+						<xtce:RestrictionCriteria>
+							<xtce:Comparison  parameterRef="MessageID" value="88"/>
 						</xtce:RestrictionCriteria>
 					</xtce:BaseContainer>
 				</xtce:CommandContainer>

@@ -1148,3 +1148,27 @@ class TestUnittest(unittest.TestCase):
         decoded = enc.decode(cmd.message_type, encoded)
 
         self.assertEqual(payload_bits, decoded.entries['Payload'])
+
+    def test_dynamic_binary_argument_roundtrip(self):
+        """Test encode then decode roundtrip with a dynamically-sized BinaryArgumentType."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        payload_bits = bitarray(bytes([0xDE, 0xAD, 0xBE, 0xEF]))
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendDynamicBlob'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'PayloadSize': 32,
+                'Payload': payload_bits,
+            }
+        )
+
+        encoded = enc.encode(cmd)
+        decoded = enc.decode(cmd.message_type, encoded)
+
+        self.assertEqual(32, decoded.entries['PayloadSize'])
+        self.assertEqual(payload_bits, decoded.entries['Payload'])
