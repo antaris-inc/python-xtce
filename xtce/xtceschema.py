@@ -1140,63 +1140,78 @@ class SpaceSystem(BaseType):
 
         return entry_type
 
-    def get_parameter(self, name):
+    @functools.cached_property
+    def _parameter_idx(self):
         paramsets = (
                 self.telemetryMetaData.parameterSet,
                 self.commandMetaData.parameterSet if self.commandMetaData else [],
         )
         objs = itertools.chain(*[ps.parameter for ps in paramsets if ps])
-        idx = dict([(o.name, o) for o in objs])
+        return dict([(o.name, o) for o in objs])
+
+    def get_parameter(self, name):
         try:
-            return idx[name]
+            return self._parameter_idx[name]
         except KeyError:
             raise ValueError(f"unknown Parameter: {name}")
 
+    @functools.cached_property
+    def _sequence_container_idx(self):
+        return dict([(o.name, o) for o in self.telemetryMetaData.containerSet.sequenceContainer])
+
     def get_sequence_container(self, name):
-        idx = dict([(o.name, o) for o in self.telemetryMetaData.containerSet.sequenceContainer])
         try:
-            return idx[name]
+            return self._sequence_container_idx[name]
         except KeyError:
             raise ValueError(f"unknown SequenceContainer: {name}")
 
+    @functools.cached_property
+    def _meta_command_idx(self):
+        return dict([(o.name, o) for o in self.commandMetaData.metaCommandSet.metaCommand])
+
     def get_meta_command(self, name):
-        idx = dict([(o.name, o) for o in self.commandMetaData.metaCommandSet.metaCommand])
         try:
-            return idx[name]
+            return self._meta_command_idx[name]
         except KeyError:
             raise ValueError(f"unknown MetaCommand: {name}")
 
-    # retrieve a CommandContainer or SequenceContainer by name
-    def get_container(self, name):
+    @functools.cached_property
+    def _container_idx(self):
         if self.commandMetaData:
-            command_containers = [c.commandContainer for c in itertools.chain(self.commandMetaData.metaCommandSet.metaCommand)]
+            command_containers = [c.commandContainer for c in self.commandMetaData.metaCommandSet.metaCommand]
         else:
             command_containers = []
-
         objs = itertools.chain(
             command_containers,
             self.telemetryMetaData.containerSet.sequenceContainer,
         )
+        return dict([(o.name, o) for o in objs])
 
-        idx = dict([(o.name, o) for o in objs])
+    def get_container(self, name):
         try:
-            return idx[name]
+            return self._container_idx[name]
         except KeyError:
             raise ValueError(f"unknown container: {name}")
 
-    # find the MetaCommands and SequenceContainers that identify a BaseContainer using the name provided
+    @functools.cached_property
+    def _inheritor_idx(self):
+        """Pre-compute inheritors keyed by base container ref name."""
+        idx = {}
+        for sc in self.telemetryMetaData.containerSet.sequenceContainer:
+            if sc.baseContainer:
+                idx.setdefault(sc.baseContainer.containerRef, []).append(sc)
+        if self.commandMetaData:
+            for mc in self.commandMetaData.metaCommandSet.metaCommand:
+                if mc.commandContainer.baseContainer:
+                    idx.setdefault(mc.commandContainer.baseContainer.containerRef, []).append(mc)
+        return idx
+
     def find_inheritors(self, message_type):
         if isinstance(message_type, MetaCommand):
             match_container_ref = message_type.commandContainer.name
         else:
             match_container_ref = message_type.name
-
-        match = []
-        match.extend([sc for sc in self.telemetryMetaData.containerSet.sequenceContainer if sc.baseContainer and sc.baseContainer.containerRef == match_container_ref])
-        if self.commandMetaData:
-            match.extend([mc for mc in self.commandMetaData.metaCommandSet.metaCommand if mc.commandContainer.baseContainer and mc.commandContainer.baseContainer.containerRef == match_container_ref])
-
-        return match
+        return list(self._inheritor_idx.get(match_container_ref, []))
 
 
 def from_file(file_location: str):
