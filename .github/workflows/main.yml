@@ -1,10 +1,9 @@
 name: ci
 on:
-  # Runs on pushes targeting the default branch
   push:
     branches: ["*"]
-
-  # Allows you to run this workflow manually from the Actions tab
+  pull_request:
+    branches: ["*"]
   workflow_dispatch:
 
 jobs:
@@ -17,7 +16,7 @@ jobs:
     steps:
 
     - name: Check out code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v5
