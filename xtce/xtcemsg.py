@@ -2,8 +2,6 @@ import typing
 
 from bitarray import bitarray
 from pydantic import BaseModel
-import itertools
-
 from xtce import xtceschema
 
 
@@ -15,9 +13,42 @@ class Message(BaseModel):
 class SpaceSystemEncoder:
     def __init__(self, space_system: xtceschema.SpaceSystem):
         self.space_system = space_system
+        self._plan_cache = {}
+        self._resolved_cache = {}
+
+    @staticmethod
+    def _conditions_met(conds, entries):
+        for cond in conds:
+            assert cond.comparisonOperator == '==', 'unsupported ComparisonOperator'
+            assert cond.instance == 0, 'unsupported instance'
+            assert cond.useCalibratedValue is True, 'unsupported useCalibratedValue'
+
+            #TODO(bcwaldon): consider how to map from string value (comes from xmlxtceschema decode) to native type
+            got = str(entries[cond.parameterRef])
+
+            if got != cond.value:
+                return False
+
+        return True
+
+    @staticmethod
+    def _restrictions_match(restrictions, entries):
+        """Pre-check restriction criteria against already-decoded entries.
+        Skips parameters not yet decoded; does not assert on operator types."""
+        for comp in restrictions:
+            if comp.comparisonOperator != '==':
+                continue
+            if comp.parameterRef in entries:
+                if str(entries[comp.parameterRef]) != comp.value:
+                    return False
+        return True
 
     def _build_entry_plan(self, message_type: xtceschema.MetaCommand | xtceschema.SequenceContainer) -> [list, list]:
-        # Return a list of entries along with their required include condtions or restrictions
+        # Return a list of entries along with their required include conditions or restrictions
+        key = id(message_type)
+        if key in self._plan_cache:
+            return self._plan_cache[key]
+
         plan = list() # list of tuples - first item is an entry and second a list of required conditions
         restrictions = list()
 
@@ -87,10 +118,58 @@ class SpaceSystemEncoder:
                 next_con_ref = con.baseContainer.containerRef
                 con = self.space_system.get_container(next_con_ref)
 
-        return plan, restrictions
+        result = (plan, restrictions)
+        self._plan_cache[key] = result
+        return result
+
+    def _get_resolved_plan(self, message_type):
+        """Get plan with pre-resolved entry types and restriction index."""
+        key = id(message_type)
+        if key in self._resolved_cache:
+            return self._resolved_cache[key]
+
+        plan, restrictions = self._build_entry_plan(message_type)
+
+        # Build arg type index for MetaCommands
+        arg_type_idx = {}
+        if isinstance(message_type, xtceschema.MetaCommand):
+            cur = message_type
+            while True:
+                if cur.argumentList and cur.argumentList.argument:
+                    arg_type_idx.update({arg.name: arg.argumentTypeRef for arg in cur.argumentList.argument})
+                if not cur.baseMetaCommand or not cur.baseMetaCommand.metaCommandRef:
+                    break
+                cur = self.space_system.get_meta_command(cur.baseMetaCommand.metaCommandRef)
+
+        # Pre-resolve entry types
+        resolved_entries = []
+        for (ent, conds) in plan:
+            if isinstance(ent, xtceschema.ArgumentRefEntry):
+                ent_name = ent.argumentRef
+                ent_type = self.space_system.get_entry_type(arg_type_idx[ent_name])
+                resolved_entries.append((ent, conds, ent_name, ent_type))
+            elif isinstance(ent, xtceschema.ParameterRefEntry):
+                ent_name = ent.parameterRef
+                ent_type = self.space_system.get_entry_type(
+                    self.space_system.get_parameter(ent_name).parameterTypeRef
+                )
+                resolved_entries.append((ent, conds, ent_name, ent_type))
+            elif isinstance(ent, xtceschema.FixedValueEntry):
+                resolved_entries.append((ent, conds, None, None))
+            else:
+                resolved_entries.append((ent, conds, None, None))
+
+        # Pre-build restriction index
+        restriction_idx = {}
+        for comp in restrictions:
+            restriction_idx.setdefault(comp.parameterRef, []).append(comp)
+
+        result = (resolved_entries, restrictions, restriction_idx)
+        self._resolved_cache[key] = result
+        return result
 
     def encode(self, msg: Message) -> bitarray:
-        plan, restrictions = self._build_entry_plan(msg.message_type)
+        resolved_entries, restrictions, _ = self._get_resolved_plan(msg.message_type)
 
         for comp in restrictions:
             assert comp.comparisonOperator == '==', 'unsupported ComparisonOperator'
@@ -104,59 +183,23 @@ class SpaceSystemEncoder:
             #NOTE(bcwaldon): unclear exactly how to handle casting from XML type to native datatype
             msg.entries[comp.parameterRef] = int(comp.value)
 
-        arg_type_idx = dict()
-        if isinstance(msg.message_type, xtceschema.MetaCommand):
-            cur = msg.message_type
-            while True:
-                if cur.argumentList and cur.argumentList.argument:
-                    arg_type_idx.update(dict([(arg.name, arg.argumentTypeRef) for arg in cur.argumentList.argument]))
-                if not cur.baseMetaCommand or not cur.baseMetaCommand.metaCommandRef:
-                    break
-                cur = self.space_system.get_meta_command(cur.baseMetaCommand.metaCommandRef)
+        encoded = bitarray()
 
-        encoded_entries = list[bitarray]()
-
-        def encode_and_append_entry(ent_name, ent_type_name):
-            ent_type = self.space_system.get_entry_type(ent_type_name)
-            ent_value = msg.entries[ent_name]
-            if isinstance(ent_type, (xtceschema.StringParameterType, xtceschema.StringArgumentType)):
-                encoded_entry = ent_type.data_encoding.encode(ent_value, msg.entries)
-            else:
-                encoded_entry = ent_type.data_encoding.encode(ent_value)
-            encoded_entries.append(encoded_entry)
-
-        def conditions_met(conds):
-            for cond in conds:
-                assert cond.comparisonOperator == '==', 'unsupported ComparisonOperator'
-                assert cond.instance == 0, 'unsupported instance'
-                assert cond.useCalibratedValue is True, 'unsupported useCalibratedValue'
-
-                #TODO(bcwaldon): consider how to map from string value (comes from xmlxtceschema decode) to native type
-                got = str(msg.entries[cond.parameterRef])
-
-                if got != cond.value:
-                    return False
-
-            return True
-
-        for (ent, conds) in plan:
-            if conds and not conditions_met(conds):
+        for (ent, conds, ent_name, ent_type) in resolved_entries:
+            if conds and not self._conditions_met(conds, msg.entries):
                 continue
 
-            if isinstance(ent, xtceschema.ArgumentRefEntry):
-                ent_name = ent.argumentRef
-                ent_type_name = arg_type_idx[ent_name]
-                encode_and_append_entry(ent_name, ent_type_name)
-            elif isinstance(ent, xtceschema.ParameterRefEntry):
-                ent_name = ent.parameterRef
-                ent_type_name = self.space_system.get_parameter(ent_name).parameterTypeRef
-                encode_and_append_entry(ent_name, ent_type_name)
+            if ent_name is not None:
+                ent_value = msg.entries[ent_name]
+                if isinstance(ent_type, (xtceschema.StringParameterType, xtceschema.StringArgumentType)):
+                    encoded.extend(ent_type.data_encoding.encode(ent_value, msg.entries))
+                else:
+                    encoded.extend(ent_type.data_encoding.encode(ent_value))
             elif isinstance(ent, xtceschema.FixedValueEntry):
-                encoded_entries.append(ent.value)
+                encoded.extend(ent.value)
             else:
                 raise ValueError(f'unable to encode {ent.__class__}')
 
-        encoded = bitarray(list(itertools.chain(*encoded_entries)))
         return encoded
 
 
@@ -172,98 +215,66 @@ class SpaceSystemEncoder:
         # When require_concrete=True: do not consider abstract message types for final decoding. Useful when concrete types have
         # the same message length as abstract types.
         #
-        bak = b.copy()
-
-        msg, rem = self._decode_message(message_type, b)
-        if not rem and (not message_type.abstract or not require_concrete):
+        msg, consumed = self._decode_message(message_type, b)
+        if consumed == len(b) and (not message_type.abstract or not require_concrete):
             return msg
 
-        n_rem = len(rem)
+        n_rem = len(b) - consumed
 
         if not message_type.abstract:
             raise ValueError(f'{n_rem}b remain to decode yet message type {message_type.name} not abstract')
 
         inheritors = self.space_system.find_inheritors(message_type)
         for inh in inheritors:
-            #NOTE(bcwaldon): this is a hack and somewhat wasteful
+            # Pre-check restriction criteria against already-decoded entries
+            # to avoid expensive decode attempts that will certainly fail
+            _, inh_restrictions, _ = self._get_resolved_plan(inh)
+            if not self._restrictions_match(inh_restrictions, msg.entries):
+                continue
+
             try:
-                return self.decode(inh, bak.copy(), require_concrete=require_concrete)
+                return self.decode(inh, b, require_concrete=require_concrete)
             except Exception as exc:
                 continue
 
         raise ValueError(f'no inheritor of {message_type.name} found to handle remaining {n_rem}b of message')
 
-    def _decode_message(self, message_type: xtceschema.SequenceContainer | xtceschema.MetaCommand, b: bitarray) -> (Message, bitarray):
+    def _decode_message(self, message_type: xtceschema.SequenceContainer | xtceschema.MetaCommand, b: bitarray) -> (Message, int):
         msg = Message(
             message_type=message_type,
             entries=dict(),
         )
 
-        plan, restrictions = self._build_entry_plan(message_type)
+        resolved_entries, _, restriction_idx = self._get_resolved_plan(message_type)
 
-        restriction_idx = {}
-        for comp in restrictions:
-            if comp.parameterRef not in restriction_idx:
-                restriction_idx[comp.parameterRef] = []
-            restriction_idx[comp.parameterRef].append(comp)
+        offset = 0
 
-        arg_type_idx = dict()
-        if isinstance(message_type, xtceschema.MetaCommand):
-            cur = msg.message_type
-            while True:
-                if cur.argumentList and cur.argumentList.argument:
-                    arg_type_idx.update(dict([(arg.name, arg.argumentTypeRef) for arg in cur.argumentList.argument]))
-                if not cur.baseMetaCommand or not cur.baseMetaCommand.metaCommandRef:
-                    break
-                cur = self.space_system.get_meta_command(cur.baseMetaCommand.metaCommandRef)
-
-        def pop_entry(b: bytearray, ent_name: str, ent_type_name: str):
-            ent_type = self.space_system.get_entry_type(ent_type_name)
-            encoded_bit_length = ent_type.data_encoding.size(msg.entries)
-
-            encoded_entry = b[:encoded_bit_length]
-            del b[:encoded_bit_length]
-
-            # Pass parameters to decode for types that need them (e.g. ArrayParameterType/ArrayArgumentType with dynamic size)
-            if isinstance(ent_type, (xtceschema.ArrayParameterType, xtceschema.ArrayArgumentType)):
-                msg.entries[ent_name] = ent_type.data_encoding.decode(encoded_entry, msg.entries)
-            else:
-                msg.entries[ent_name] = ent_type.data_encoding.decode(encoded_entry)
-
-        def conditions_met(conds):
-            for cond in conds:
-                assert cond.comparisonOperator == '==', 'unsupported ComparisonOperator'
-                assert cond.instance == 0, 'unsupported instance'
-                assert cond.useCalibratedValue is True, 'unsupported useCalibratedValue'
-
-                #TODO(bcwaldon): consider how to map from string value (comes from xmlxtceschema decode) to native type
-                got = str(msg.entries[cond.parameterRef])
-
-                if got != cond.value:
-                    return False
-            return True
-
-        for (ent, conds) in plan:
-            if conds and not conditions_met(conds):
+        for (ent, conds, ent_name, ent_type) in resolved_entries:
+            if conds and not self._conditions_met(conds, msg.entries):
                 # simply ignore in this case
                 continue
 
-            if isinstance(ent, xtceschema.ArgumentRefEntry):
-                ent_name = ent.argumentRef
-                ent_type_name = arg_type_idx[ent_name]
-                pop_entry(b, ent_name, ent_type_name)
-            elif isinstance(ent, xtceschema.ParameterRefEntry):
-                ent_name = ent.parameterRef
-                ent_type_name = self.space_system.get_parameter(ent_name).parameterTypeRef
-                pop_entry(b, ent_name, ent_type_name)
-                if ent_name in restriction_idx and not conditions_met(restriction_idx[ent_name]):
-                    raise ValueError(f'restriction criteria violated for entry {ent_name}')
+            if ent_name is not None:
+                encoded_bit_length = ent_type.data_encoding.size(msg.entries)
+                encoded_entry = b[offset:offset + encoded_bit_length]
+                offset += encoded_bit_length
+
+                # Pass parameters to decode for types that need them (e.g. ArrayParameterType/ArrayArgumentType with dynamic size)
+                if isinstance(ent_type, (xtceschema.ArrayParameterType, xtceschema.ArrayArgumentType)):
+                    msg.entries[ent_name] = ent_type.data_encoding.decode(encoded_entry, msg.entries)
+                else:
+                    msg.entries[ent_name] = ent_type.data_encoding.decode(encoded_entry)
+
+                if isinstance(ent, xtceschema.ParameterRefEntry) and ent_name in restriction_idx:
+                    if not self._conditions_met(restriction_idx[ent_name], msg.entries):
+                        raise ValueError(f'restriction criteria violated for entry {ent_name}')
 
             elif isinstance(ent, xtceschema.FixedValueEntry):
-                encoded_entry, b = b[:ent.sizeInBits], b[ent.sizeInBits:]
+                encoded_entry = b[offset:offset + ent.sizeInBits]
                 if encoded_entry != ent.value:
                     raise ValueError('fixed value mismatch')
+                offset += ent.sizeInBits
             else:
                 raise ValueError(f'unable to decode {ent.__class__}')
 
-        return msg, b
+        return msg, offset
