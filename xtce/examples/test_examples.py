@@ -1172,3 +1172,114 @@ class TestUnittest(unittest.TestCase):
 
         self.assertEqual(32, decoded.entries['PayloadSize'])
         self.assertEqual(payload_bits, decoded.entries['Payload'])
+
+    def test_encode_variable_string_argument(self):
+        """Test encoding a command with a variable-length null-terminated string argument."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendLabel'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'Label__size': 48,
+                'Label': 'Hello',
+            }
+        )
+
+        got = enc.encode(cmd)
+        # MessageType=1, Dest=11, Src=32, ID=88, Intermediate=50,
+        # Label__size=48, Label=b'Hello\x00'
+        want = bitarray(bytes([1, 11, 32, 88, 50, 48]) + b'Hello\x00')
+
+        self.assertEqual(want, got)
+
+    def test_decode_variable_string_argument(self):
+        """Test decoding a command with a variable-length null-terminated string argument."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        # MessageType=1, Dest=11, Src=32, ID=88, Intermediate=50,
+        # Label__size=48, Label=b'Hello\x00'
+        arg = bitarray(bytes([1, 11, 32, 88, 50, 48]) + b'Hello\x00')
+
+        got = enc.decode(ss.get_meta_command('Command_SendLabel'), arg)
+
+        want = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendLabel'),
+            entries={
+                'MessageType': 1,
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'MessageID': 88,
+                'Intermediate': 50,
+                'Label__size': 48,
+                'Label': 'Hello',
+            }
+        )
+
+        self.assertEqual(want, got)
+
+    def test_variable_string_argument_roundtrip(self):
+        """Test encode/decode roundtrip for variable-length string arguments."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        cmd = xtcemsg.Message(
+            message_type=ss.get_meta_command('Command_SendLabel'),
+            entries={
+                'MessageSource': 32,
+                'MessageDestination': 11,
+                'Intermediate': 50,
+                'Label__size': 48,
+                'Label': 'Hello',
+            }
+        )
+
+        encoded = enc.encode(cmd)
+        decoded = enc.decode(cmd.message_type, encoded)
+
+        self.assertEqual(decoded.entries['Label'], 'Hello')
+        self.assertEqual(decoded.entries['Label__size'], 48)
+        self.assertEqual(decoded.entries['Intermediate'], 50)
+
+    def test_decode_variable_string_uses_terminator_not_size(self):
+        """Test that decode uses the termination character, not Label__size.
+
+        The new decode logic scans the buffer for the termination character
+        rather than calling size() with the Label__size dynamic reference.
+        Here Label__size is set to a bogus value (99), but the null-terminated
+        string in the buffer is correctly decoded regardless.
+        """
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        # MessageType=1, Dest=11, Src=32, ID=88, Intermediate=50,
+        # Label__size=99 (does not reflect actual string length),
+        # Label=b'Hi\x00' (3 bytes, null-terminated)
+        arg = bitarray(bytes([1, 11, 32, 88, 50, 99]) + b'Hi\x00')
+
+        got = enc.decode(ss.get_meta_command('Command_SendLabel'), arg)
+
+        self.assertEqual(got.entries['Label'], 'Hi')
+        self.assertEqual(got.entries['Label__size'], 99)
+
+    def test_decode_variable_string_argument_empty_string(self):
+        """Test decoding a variable-length string that is empty (just a null terminator)."""
+        ss = xtceschema.from_file(self.loc)
+
+        enc = xtcemsg.SpaceSystemEncoder(ss)
+
+        # MessageType=1, Dest=11, Src=32, ID=88, Intermediate=50,
+        # Label__size=8 (1 byte), Label=b'\x00' (empty string with terminator)
+        arg = bitarray(bytes([1, 11, 32, 88, 50, 8, 0]))
+
+        got = enc.decode(ss.get_meta_command('Command_SendLabel'), arg)
+
+        self.assertEqual(got.entries['Label'], '')

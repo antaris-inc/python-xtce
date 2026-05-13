@@ -255,15 +255,40 @@ class SpaceSystemEncoder:
                 continue
 
             if ent_name is not None:
-                encoded_bit_length = ent_type.data_encoding.size(msg.entries)
-                encoded_entry = b[offset:offset + encoded_bit_length]
-                offset += encoded_bit_length
+                enc = ent_type.data_encoding
 
-                # Pass parameters to decode for types that need them (e.g. ArrayParameterType/ArrayArgumentType with dynamic size)
-                if isinstance(ent_type, (xtceschema.ArrayParameterType, xtceschema.ArrayArgumentType)):
-                    msg.entries[ent_name] = ent_type.data_encoding.decode(encoded_entry, msg.entries)
+                # Variable-length terminated strings: scan buffer for the
+                # termination character rather than blindly reading maxSizeInBits.
+                if (isinstance(enc, xtceschema.StringDataEncoding)
+                        and enc.variable is not None
+                        and enc._get_termination_bytes() is not None):
+                    max_bits = enc.variable.maxSizeInBits
+                    remaining_bits = len(b) - offset
+                    read_bits = min(max_bits, remaining_bits)
+                    read_bits = (read_bits // 8) * 8  # byte-align
+                    chunk = b[offset:offset + read_bits]
+
+                    raw = chunk.tobytes()
+                    term = enc._get_termination_bytes()
+                    term_pos = raw.find(term)
+                    if term_pos != -1:
+                        consumed_bits = (term_pos + len(term)) * 8
+                    else:
+                        consumed_bits = read_bits
+
+                    encoded_entry = b[offset:offset + consumed_bits]
+                    offset += consumed_bits
+                    msg.entries[ent_name] = enc.decode(encoded_entry)
                 else:
-                    msg.entries[ent_name] = ent_type.data_encoding.decode(encoded_entry)
+                    encoded_bit_length = enc.size(msg.entries)
+                    encoded_entry = b[offset:offset + encoded_bit_length]
+                    offset += encoded_bit_length
+
+                    # Pass parameters to decode for types that need them (e.g. ArrayParameterType/ArrayArgumentType with dynamic size)
+                    if isinstance(ent_type, (xtceschema.ArrayParameterType, xtceschema.ArrayArgumentType)):
+                        msg.entries[ent_name] = enc.decode(encoded_entry, msg.entries)
+                    else:
+                        msg.entries[ent_name] = enc.decode(encoded_entry)
 
                 if isinstance(ent, xtceschema.ParameterRefEntry) and ent_name in restriction_idx:
                     if not self._conditions_met(restriction_idx[ent_name], msg.entries):
