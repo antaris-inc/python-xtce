@@ -1002,3 +1002,174 @@ class TestGetContainerWithoutCommandMetaData(unittest.TestCase):
         leaf = self.ss.get_sequence_container('ChildContainer')
         inheritors = self.ss.find_inheritors(leaf)
         self.assertEqual(inheritors, [])
+
+
+class TestNestedSpaceSystems(unittest.TestCase):
+    """Test qualified name lookups with nested SpaceSystems and duplicate names."""
+
+    NESTED_XTCE = b'''\
+<xtce:SpaceSystem xmlns:xtce="http://www.omg.org/spec/XTCE/20250214" name="Root">
+  <xtce:TelemetryMetaData>
+    <xtce:ParameterTypeSet>
+      <xtce:IntegerParameterType name="sensor_type" signed="false">
+        <xtce:IntegerDataEncoding sizeInBits="8" encoding="unsigned"/>
+      </xtce:IntegerParameterType>
+    </xtce:ParameterTypeSet>
+    <xtce:ParameterSet>
+      <xtce:Parameter parameterTypeRef="sensor_type" name="sensor"/>
+    </xtce:ParameterSet>
+    <xtce:ContainerSet>
+      <xtce:SequenceContainer name="RootPacket">
+        <xtce:EntryList>
+          <xtce:ParameterRefEntry parameterRef="sensor"/>
+        </xtce:EntryList>
+      </xtce:SequenceContainer>
+    </xtce:ContainerSet>
+  </xtce:TelemetryMetaData>
+  <xtce:SpaceSystem name="Payload">
+    <xtce:TelemetryMetaData>
+      <xtce:ParameterTypeSet>
+        <xtce:IntegerParameterType name="sensor_type" signed="false">
+          <xtce:IntegerDataEncoding sizeInBits="16" encoding="unsigned"/>
+        </xtce:IntegerParameterType>
+      </xtce:ParameterTypeSet>
+      <xtce:ParameterSet>
+        <xtce:Parameter parameterTypeRef="sensor_type" name="sensor"/>
+      </xtce:ParameterSet>
+      <xtce:ContainerSet>
+        <xtce:SequenceContainer name="PayloadPacket">
+          <xtce:EntryList>
+            <xtce:ParameterRefEntry parameterRef="sensor"/>
+          </xtce:EntryList>
+        </xtce:SequenceContainer>
+      </xtce:ContainerSet>
+    </xtce:TelemetryMetaData>
+  </xtce:SpaceSystem>
+  <xtce:SpaceSystem name="Platform">
+    <xtce:TelemetryMetaData>
+      <xtce:ParameterTypeSet>
+        <xtce:IntegerParameterType name="sensor_type" signed="true">
+          <xtce:IntegerDataEncoding sizeInBits="32" encoding="twosComplement"/>
+        </xtce:IntegerParameterType>
+      </xtce:ParameterTypeSet>
+      <xtce:ParameterSet>
+        <xtce:Parameter parameterTypeRef="sensor_type" name="sensor"/>
+      </xtce:ParameterSet>
+      <xtce:ContainerSet>
+        <xtce:SequenceContainer name="PlatformPacket">
+          <xtce:EntryList>
+            <xtce:ParameterRefEntry parameterRef="sensor"/>
+          </xtce:EntryList>
+        </xtce:SequenceContainer>
+      </xtce:ContainerSet>
+    </xtce:TelemetryMetaData>
+  </xtce:SpaceSystem>
+</xtce:SpaceSystem>'''
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ss = xtceschema.from_bytes(cls.NESTED_XTCE)
+
+    def test_parse_nested_space_systems(self):
+        self.assertEqual(self.ss.name, 'Root')
+        self.assertEqual(len(self.ss.spaceSystem), 2)
+        self.assertEqual(self.ss.spaceSystem[0].name, 'Payload')
+        self.assertEqual(self.ss.spaceSystem[1].name, 'Platform')
+
+    def test_get_subsystem(self):
+        payload = self.ss.get_subsystem('Payload')
+        self.assertEqual(payload.name, 'Payload')
+        platform = self.ss.get_subsystem('Platform')
+        self.assertEqual(platform.name, 'Platform')
+
+    def test_get_subsystem_unknown_raises(self):
+        with self.assertRaises(ValueError):
+            self.ss.get_subsystem('NonExistent')
+
+    # --- Unqualified lookups resolve from root only ---
+
+    def test_unqualified_get_entry_type_returns_root(self):
+        entry_type = self.ss.get_entry_type('sensor_type')
+        self.assertEqual(entry_type.data_encoding.sizeInBits, 8)
+
+    def test_unqualified_get_parameter_returns_root(self):
+        param = self.ss.get_parameter('sensor')
+        self.assertEqual(param.parameterTypeRef, 'sensor_type')
+
+    def test_unqualified_get_sequence_container_returns_root(self):
+        container = self.ss.get_sequence_container('RootPacket')
+        self.assertEqual(container.name, 'RootPacket')
+
+    # --- Qualified lookups resolve from child SpaceSystems ---
+
+    def test_qualified_get_entry_type_payload(self):
+        entry_type = self.ss.get_entry_type('Payload/sensor_type')
+        self.assertEqual(entry_type.data_encoding.sizeInBits, 16)
+
+    def test_qualified_get_entry_type_platform(self):
+        entry_type = self.ss.get_entry_type('Platform/sensor_type')
+        self.assertEqual(entry_type.data_encoding.sizeInBits, 32)
+
+    def test_qualified_get_parameter_payload(self):
+        param = self.ss.get_parameter('Payload/sensor')
+        self.assertEqual(param.name, 'sensor')
+
+    def test_qualified_get_parameter_platform(self):
+        param = self.ss.get_parameter('Platform/sensor')
+        self.assertEqual(param.name, 'sensor')
+
+    def test_qualified_get_sequence_container(self):
+        container = self.ss.get_sequence_container('Payload/PayloadPacket')
+        self.assertEqual(container.name, 'PayloadPacket')
+
+    def test_qualified_get_container(self):
+        container = self.ss.get_container('Platform/PlatformPacket')
+        self.assertEqual(container.name, 'PlatformPacket')
+
+    # --- Duplicate names are distinct across namespaces ---
+
+    def test_duplicate_names_are_distinct(self):
+        root_type = self.ss.get_entry_type('sensor_type')
+        payload_type = self.ss.get_entry_type('Payload/sensor_type')
+        platform_type = self.ss.get_entry_type('Platform/sensor_type')
+
+        self.assertEqual(root_type.data_encoding.sizeInBits, 8)
+        self.assertEqual(payload_type.data_encoding.sizeInBits, 16)
+        self.assertEqual(platform_type.data_encoding.sizeInBits, 32)
+
+        # All three are distinct objects
+        self.assertIsNot(root_type, payload_type)
+        self.assertIsNot(root_type, platform_type)
+        self.assertIsNot(payload_type, platform_type)
+
+    # --- Error cases ---
+
+    def test_qualified_unknown_subsystem_raises(self):
+        with self.assertRaises(ValueError):
+            self.ss.get_entry_type('Unknown/sensor_type')
+
+    def test_qualified_unknown_name_in_subsystem_raises(self):
+        with self.assertRaises(ValueError):
+            self.ss.get_entry_type('Payload/nonexistent')
+
+    def test_unqualified_name_from_child_not_found_in_root(self):
+        with self.assertRaises(ValueError):
+            self.ss.get_sequence_container('PayloadPacket')
+
+    # --- Leading slash indicates root ---
+
+    def test_leading_slash_resolves_from_root(self):
+        entry_type = self.ss.get_entry_type('/sensor_type')
+        self.assertEqual(entry_type.data_encoding.sizeInBits, 8)
+
+    def test_leading_slash_with_subsystem_path(self):
+        entry_type = self.ss.get_entry_type('/Payload/sensor_type')
+        self.assertEqual(entry_type.data_encoding.sizeInBits, 16)
+
+    def test_leading_slash_get_parameter(self):
+        param = self.ss.get_parameter('/sensor')
+        self.assertEqual(param.parameterTypeRef, 'sensor_type')
+
+    def test_leading_slash_get_sequence_container(self):
+        container = self.ss.get_sequence_container('/Payload/PayloadPacket')
+        self.assertEqual(container.name, 'PayloadPacket')

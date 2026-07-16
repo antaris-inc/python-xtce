@@ -1084,6 +1084,34 @@ class SpaceSystem(BaseType):
     spaceSystem: list['SpaceSystem'] = None
 
     @functools.cached_property
+    def _subsystem_idx(self):
+        if not self.spaceSystem:
+            return {}
+        return {ss.name: ss for ss in self.spaceSystem}
+
+    def get_subsystem(self, path: str) -> 'SpaceSystem':
+        """Resolve a child SpaceSystem by a /-separated path of names."""
+        parts = path.split('/')
+        current = self
+        for part in parts:
+            try:
+                current = current._subsystem_idx[part]
+            except KeyError:
+                raise ValueError(f"unknown SpaceSystem: {part}")
+        return current
+
+    def _split_qualified_name(self, name: str):
+        """Split a qualified name into (subsystem_path, local_name).
+        Returns (None, name) for unqualified names.
+        A leading '/' indicates root and is stripped before processing."""
+        if name.startswith('/'):
+            name = name[1:]
+        if '/' not in name:
+            return None, name
+        parts = name.rsplit('/', 1)
+        return parts[0], parts[1]
+
+    @functools.cached_property
     def _type_idx(self):
         parameter_type_sets = [
             self.telemetryMetaData.parameterTypeSet or [],
@@ -1121,10 +1149,14 @@ class SpaceSystem(BaseType):
         return dict([(o.name, o) for o in objs])
 
     def get_entry_type(self, name):
+        subsystem_path, local_name = self._split_qualified_name(name)
+        if subsystem_path:
+            return self.get_subsystem(subsystem_path).get_entry_type(local_name)
+
         try:
-            entry_type = self._type_idx[name]
+            entry_type = self._type_idx[local_name]
         except KeyError:
-            raise ValueError(f"unknown entry type: {name}")
+            raise ValueError(f"unknown entry type: {local_name}")
 
         if isinstance(entry_type, ArrayParameterType):
             try:
@@ -1150,30 +1182,42 @@ class SpaceSystem(BaseType):
         return dict([(o.name, o) for o in objs])
 
     def get_parameter(self, name):
+        subsystem_path, local_name = self._split_qualified_name(name)
+        if subsystem_path:
+            return self.get_subsystem(subsystem_path).get_parameter(local_name)
+
         try:
-            return self._parameter_idx[name]
+            return self._parameter_idx[local_name]
         except KeyError:
-            raise ValueError(f"unknown Parameter: {name}")
+            raise ValueError(f"unknown Parameter: {local_name}")
 
     @functools.cached_property
     def _sequence_container_idx(self):
         return dict([(o.name, o) for o in self.telemetryMetaData.containerSet.sequenceContainer])
 
     def get_sequence_container(self, name):
+        subsystem_path, local_name = self._split_qualified_name(name)
+        if subsystem_path:
+            return self.get_subsystem(subsystem_path).get_sequence_container(local_name)
+
         try:
-            return self._sequence_container_idx[name]
+            return self._sequence_container_idx[local_name]
         except KeyError:
-            raise ValueError(f"unknown SequenceContainer: {name}")
+            raise ValueError(f"unknown SequenceContainer: {local_name}")
 
     @functools.cached_property
     def _meta_command_idx(self):
         return dict([(o.name, o) for o in self.commandMetaData.metaCommandSet.metaCommand])
 
     def get_meta_command(self, name):
+        subsystem_path, local_name = self._split_qualified_name(name)
+        if subsystem_path:
+            return self.get_subsystem(subsystem_path).get_meta_command(local_name)
+
         try:
-            return self._meta_command_idx[name]
+            return self._meta_command_idx[local_name]
         except KeyError:
-            raise ValueError(f"unknown MetaCommand: {name}")
+            raise ValueError(f"unknown MetaCommand: {local_name}")
 
     @functools.cached_property
     def _container_idx(self):
@@ -1188,10 +1232,14 @@ class SpaceSystem(BaseType):
         return dict([(o.name, o) for o in objs])
 
     def get_container(self, name):
+        subsystem_path, local_name = self._split_qualified_name(name)
+        if subsystem_path:
+            return self.get_subsystem(subsystem_path).get_container(local_name)
+
         try:
-            return self._container_idx[name]
+            return self._container_idx[local_name]
         except KeyError:
-            raise ValueError(f"unknown container: {name}")
+            raise ValueError(f"unknown container: {local_name}")
 
     @functools.cached_property
     def _inheritor_idx(self):
