@@ -155,7 +155,7 @@ Types available in `ArgumentTypeSet`:
 
 | Feature | Supported | Notes |
 |---------|-----------|-------|
-| SpaceSystem (root) | Yes | Including nested SpaceSystem |
+| SpaceSystem (root) | Yes | Including nested SpaceSystem with qualified name lookups |
 | Header | Partial | Parsed as string |
 | UnitSet | Yes | Parsed on types that support it |
 | ValidRange | Yes | Parsed on IntegerParameterType/ArgumentType |
@@ -164,3 +164,41 @@ Types available in `ArgumentTypeSet`:
 | ServiceSet | No | |
 | AlgorithmSet | No | |
 | StreamSet | No | |
+
+## Nested SpaceSystems
+
+XTCE allows `SpaceSystem` elements to be nested, enabling modular organization of telemetry and command definitions (e.g. separating a `Payload` subsystem from a `Platform` subsystem).
+
+This library supports nested SpaceSystems with qualified name lookups using `/` as a path separator:
+
+```python
+import xtce.xtceschema as xtceschema
+
+ss = xtceschema.from_file('spacecraft.xml')
+
+# Unqualified names resolve from the root SpaceSystem only
+root_param = ss.get_parameter('sensor')
+
+# Qualified names resolve from child SpaceSystems
+payload_param = ss.get_parameter('Payload/sensor')
+platform_param = ss.get_parameter('Platform/sensor')
+
+# A leading '/' can optionally indicate the root
+root_param = ss.get_parameter('/sensor')
+payload_param = ss.get_parameter('/Payload/sensor')
+
+# Access a child SpaceSystem directly
+payload_ss = ss.get_subsystem('Payload')
+
+# Nested paths are supported
+deep_param = ss.get_parameter('Payload/Instruments/sensor')
+```
+
+Qualified name lookups are supported on all accessor methods:
+- `get_entry_type(name)`
+- `get_parameter(name)`
+- `get_sequence_container(name)`
+- `get_meta_command(name)`
+- `get_container(name)`
+
+Each SpaceSystem maintains its own namespace — duplicate names across different SpaceSystems are allowed and remain distinct.
